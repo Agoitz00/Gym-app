@@ -8,19 +8,38 @@
       searchPlaceholder: 'Buscar ejercicio, músculo…', allEquipment: 'Todo el equipo',
       emptyTitle: 'No hay ejercicios con esos filtros.', emptyReset: 'Quitar filtros',
       labelTarget: 'Músculo objetivo', labelEquipment: 'Equipo', labelSecondary: 'Músculos secundarios',
-      labelSteps: 'Cómo se hace', addToRoutine: 'Añadir a mi rutina', addedToRoutine: 'Añadido ✓',
-      routineEmpty: 'Aún no has añadido ejercicios.', footerData: 'Datos de ejercicios',
+      labelSteps: 'Cómo se hace', addToRoutine: 'Añadir a mi rutina', chooseDay: 'Elige un día:',
+      routineEmpty: 'Aún no has añadido ejercicios a tu semana.', footerData: 'Datos de ejercicios',
       footerMedia: 'Imágenes y animaciones', results: (n) => `${n} ejercicios`,
+      altToggle: '¿Ocupado? Ver alternativas', altTitle: 'Mismo músculo, otro equipo:',
+      altEmpty: 'No hay alternativas con otro equipo para este ejercicio.',
+      dayEmpty: 'Sin ejercicios.', swap: 'Cambiar', swapTitle: 'Elige un sustituto para', addedFlash: '¡Añadido!',
     },
     en: {
       tagline: 'Exercise library', myRoutine: 'My routine',
       searchPlaceholder: 'Search exercise, muscle…', allEquipment: 'All equipment',
       emptyTitle: 'No exercises match those filters.', emptyReset: 'Clear filters',
       labelTarget: 'Target muscle', labelEquipment: 'Equipment', labelSecondary: 'Secondary muscles',
-      labelSteps: 'How to do it', addToRoutine: 'Add to my routine', addedToRoutine: 'Added ✓',
-      routineEmpty: 'No exercises added yet.', footerData: 'Exercise data',
+      labelSteps: 'How to do it', addToRoutine: 'Add to my routine', chooseDay: 'Pick a day:',
+      routineEmpty: 'No exercises in your week yet.', footerData: 'Exercise data',
       footerMedia: 'Images & animations', results: (n) => `${n} exercises`,
+      altToggle: 'Occupied? See alternatives', altTitle: 'Same muscle, different equipment:',
+      altEmpty: 'No alternatives with different equipment for this exercise.',
+      dayEmpty: 'No exercises.', swap: 'Swap', swapTitle: 'Pick a substitute for', addedFlash: 'Added!',
     },
+  };
+
+  const DAYS = [
+    { key: 'lun', es: 'Lunes', en: 'Monday' }, { key: 'mar', es: 'Martes', en: 'Tuesday' },
+    { key: 'mie', es: 'Miércoles', en: 'Wednesday' }, { key: 'jue', es: 'Jueves', en: 'Thursday' },
+    { key: 'vie', es: 'Viernes', en: 'Friday' }, { key: 'sab', es: 'Sábado', en: 'Saturday' },
+    { key: 'dom', es: 'Domingo', en: 'Sunday' },
+  ];
+  const dayLabel = (key, short = false) => {
+    const d = DAYS.find(d => d.key === key);
+    if (!d) return key;
+    const full = d[state.lang];
+    return short ? full.slice(0, 3) : full;
   };
 
   const BODY_PART_LABEL = {
@@ -68,12 +87,22 @@
   const label = (map, key) => (map[key] ? map[key][state.lang] : key);
 
   /* ---------- State ---------- */
+  const emptyRoutine = () => Object.fromEntries(DAYS.map(d => [d.key, []]));
+
+  function loadRoutine() {
+    try {
+      const raw = JSON.parse(localStorage.getItem('cargadero_routine') || 'null');
+      if (raw && !Array.isArray(raw) && DAYS.every(d => Array.isArray(raw[d.key]))) return raw;
+    } catch {}
+    return emptyRoutine();
+  }
+
   const state = {
     lang: 'es',
     all: [], filtered: [],
     activeParts: new Set(), activeEquipment: '', query: '',
     shown: 0, pageSize: 30,
-    routine: JSON.parse(localStorage.getItem('cargadero_routine') || '[]'),
+    routine: loadRoutine(),
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -178,6 +207,24 @@
     applyFilters();
   });
 
+  /* ---------- Alternatives (same target, different equipment) ---------- */
+  function getAlternatives(exercise, limit = 4) {
+    return state.all
+      .filter(e => e.id !== exercise.id && e.target === exercise.target && e.equipment !== exercise.equipment)
+      .slice(0, limit);
+  }
+
+  function miniCard(e, onClick) {
+    const el = document.createElement('button');
+    el.type = 'button'; el.className = 'mini-card';
+    el.innerHTML = `
+      <img src="${e.image}" alt="" loading="lazy">
+      <span class="mini-name">${e.name}</span>
+      <span class="mini-eq">${label(EQUIPMENT_LABEL, e.equipment)}</span>`;
+    el.addEventListener('click', () => onClick(e));
+    return el;
+  }
+
   /* ---------- Modal ---------- */
   const backdrop = $('#modalBackdrop');
   let currentExercise = null;
@@ -193,7 +240,11 @@
     $('#modalSecondary').textContent = e.secondary_muscles.map(m => label(TARGET_LABEL, m)).join(', ') || '—';
     const steps = e.steps[state.lang] || e.steps.en || [];
     $('#modalSteps').innerHTML = steps.map(s => `<li>${s}</li>`).join('');
-    refreshAddButton();
+
+    $('#modalDayPicker').hidden = true;
+    $('#modalAddBtn').textContent = UI[state.lang].addToRoutine;
+    $('#altList').hidden = true;
+    $('#altToggle').textContent = UI[state.lang].altToggle;
     backdrop.hidden = false;
   }
   function closeModal() { backdrop.hidden = true; currentExercise = null; }
@@ -201,43 +252,133 @@
   backdrop.addEventListener('click', (ev) => { if (ev.target === backdrop) closeModal(); });
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { closeModal(); closeRoutine(); } });
 
-  function refreshAddButton() {
-    const btn = $('#modalAddBtn');
-    const added = state.routine.includes(currentExercise.id);
-    btn.querySelector('span').textContent = added ? UI[state.lang].addedToRoutine : UI[state.lang].addToRoutine;
-    btn.dataset.added = added;
-  }
-  $('#modalAddBtn').addEventListener('click', () => {
-    if (!currentExercise) return;
-    toggleRoutine(currentExercise.id);
-    refreshAddButton();
-  });
-
-  /* ---------- Routine ---------- */
-  function toggleRoutine(id) {
-    const i = state.routine.indexOf(id);
-    if (i === -1) state.routine.push(id); else state.routine.splice(i, 1);
-    localStorage.setItem('cargadero_routine', JSON.stringify(state.routine));
-    updateRoutineBadge();
-    if (!$('#routineBackdrop').hidden) renderRoutinePanel();
-  }
-  function updateRoutineBadge() { $('#routineCount').textContent = state.routine.length; }
-
-  function renderRoutinePanel() {
-    const list = $('#routineList');
-    const items = state.routine.map(id => state.all.find(e => e.id === id)).filter(Boolean);
-    $('#routineEmpty').hidden = items.length > 0;
-    list.innerHTML = items.map(e => `
-      <li class="routine-item" data-id="${e.id}">
-        <img src="${e.image}" alt="" loading="lazy">
-        <span class="ri-name">${e.name}</span>
-        <button type="button" aria-label="Quitar">✕</button>
-      </li>`).join('');
-    list.querySelectorAll('.routine-item button').forEach(btn => {
-      btn.addEventListener('click', () => toggleRoutine(btn.closest('.routine-item').dataset.id));
+  function renderDayPicker(container, onPick) {
+    container.innerHTML = `<p class="day-picker-label">${UI[state.lang].chooseDay}</p>` +
+      DAYS.map(d => `<button type="button" class="day-chip" data-day="${d.key}">${dayLabel(d.key, true)}</button>`).join('');
+    container.querySelectorAll('.day-chip').forEach(btn => {
+      btn.addEventListener('click', () => onPick(btn.dataset.day));
     });
   }
-  function openRoutine() { renderRoutinePanel(); $('#routineBackdrop').hidden = false; }
+
+  $('#modalAddBtn').addEventListener('click', () => {
+    const picker = $('#modalDayPicker');
+    if (picker.hidden) {
+      renderDayPicker(picker, (day) => {
+        addToRoutine(day, currentExercise.id);
+        $('#modalAddBtn').textContent = UI[state.lang].addedFlash;
+        picker.hidden = true;
+        setTimeout(() => { if (currentExercise) $('#modalAddBtn').textContent = UI[state.lang].addToRoutine; }, 1200);
+      });
+      picker.hidden = false;
+    } else {
+      picker.hidden = true;
+    }
+  });
+
+  $('#altToggle').addEventListener('click', () => {
+    const list = $('#altList');
+    if (!list.hidden) { list.hidden = true; return; }
+    const alts = getAlternatives(currentExercise);
+    list.innerHTML = '';
+    if (!alts.length) {
+      list.innerHTML = `<p class="alt-empty">${UI[state.lang].altEmpty}</p>`;
+    } else {
+      const title = document.createElement('p');
+      title.className = 'alt-list-title'; title.textContent = UI[state.lang].altTitle;
+      list.appendChild(title);
+      const row = document.createElement('div'); row.className = 'mini-row';
+      alts.forEach(a => row.appendChild(miniCard(a, openModal)));
+      list.appendChild(row);
+    }
+    list.hidden = false;
+  });
+
+  /* ---------- Routine (por día) ---------- */
+  function saveRoutine() { localStorage.setItem('cargadero_routine', JSON.stringify(state.routine)); }
+
+  function addToRoutine(day, id) {
+    if (!state.routine[day].includes(id)) state.routine[day].push(id);
+    saveRoutine();
+    updateRoutineBadge();
+    if (!$('#routineBackdrop').hidden) renderRoutineDays();
+  }
+  function removeFromRoutine(day, id) {
+    state.routine[day] = state.routine[day].filter(x => x !== id);
+    saveRoutine();
+    updateRoutineBadge();
+    renderRoutineDays();
+  }
+  function swapInRoutine(day, oldId, newId) {
+    const i = state.routine[day].indexOf(oldId);
+    if (i !== -1) state.routine[day][i] = newId;
+    saveRoutine();
+    renderRoutineDays();
+  }
+  function updateRoutineBadge() {
+    const total = DAYS.reduce((n, d) => n + state.routine[d.key].length, 0);
+    $('#routineCount').textContent = total;
+  }
+
+  function renderRoutineDays() {
+    const container = $('#routineDays');
+    const total = DAYS.reduce((n, d) => n + state.routine[d.key].length, 0);
+    $('#routineEmpty').hidden = total > 0;
+    container.innerHTML = '';
+    DAYS.forEach(d => {
+      const ids = state.routine[d.key];
+      const section = document.createElement('div');
+      section.className = 'day-section';
+      section.innerHTML = `<h3 class="day-heading">${dayLabel(d.key)} <span class="day-count">${ids.length}</span></h3>`;
+      if (!ids.length) {
+        const p = document.createElement('p');
+        p.className = 'day-empty'; p.textContent = UI[state.lang].dayEmpty;
+        section.appendChild(p);
+      } else {
+        const list = document.createElement('ul');
+        list.className = 'routine-list';
+        ids.forEach(id => {
+          const ex = state.all.find(e => e.id === id);
+          if (!ex) return;
+          const li = document.createElement('li');
+          li.className = 'routine-item';
+          li.innerHTML = `
+            <img src="${ex.image}" alt="" loading="lazy">
+            <span class="ri-name">${ex.name}</span>
+            <button type="button" class="ri-swap" title="${UI[state.lang].swap}">⇄</button>
+            <button type="button" class="ri-remove" aria-label="Quitar">✕</button>`;
+          li.querySelector('.ri-remove').addEventListener('click', () => removeFromRoutine(d.key, id));
+          li.querySelector('.ri-swap').addEventListener('click', (ev) => openSwapPicker(ev.currentTarget, d.key, ex));
+          list.appendChild(li);
+        });
+        section.appendChild(list);
+      }
+      container.appendChild(section);
+    });
+  }
+
+  function openSwapPicker(anchorBtn, day, exercise) {
+    document.querySelectorAll('.swap-pop').forEach(p => p.remove());
+    const alts = getAlternatives(exercise);
+    const pop = document.createElement('div');
+    pop.className = 'swap-pop';
+    if (!alts.length) {
+      pop.innerHTML = `<p class="alt-empty">${UI[state.lang].altEmpty}</p>`;
+    } else {
+      pop.innerHTML = `<p class="swap-pop-title">${UI[state.lang].swapTitle} ${exercise.name}</p>`;
+      const row = document.createElement('div'); row.className = 'mini-row';
+      alts.forEach(a => row.appendChild(miniCard(a, (picked) => {
+        swapInRoutine(day, exercise.id, picked.id);
+        pop.remove();
+      })));
+      pop.appendChild(row);
+    }
+    anchorBtn.closest('.routine-item').appendChild(pop);
+    setTimeout(() => document.addEventListener('click', function onDoc(ev) {
+      if (!pop.contains(ev.target) && ev.target !== anchorBtn) { pop.remove(); document.removeEventListener('click', onDoc); }
+    }), 0);
+  }
+
+  function openRoutine() { renderRoutineDays(); $('#routineBackdrop').hidden = false; }
   function closeRoutine() { $('#routineBackdrop').hidden = true; }
   $('#routineBtn').addEventListener('click', openRoutine);
   $('#routineClose').addEventListener('click', closeRoutine);
@@ -249,7 +390,7 @@
     document.documentElement.lang = lang;
     $('#langBtn').textContent = lang.toUpperCase();
     document.querySelectorAll('[data-i18n]').forEach(el => {
-      el.textContent = UI[lang][el.dataset.i18n];
+      if (UI[lang][el.dataset.i18n] !== undefined) el.textContent = UI[lang][el.dataset.i18n];
     });
     document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
       el.placeholder = UI[lang][el.dataset.i18nPlaceholder];
@@ -267,7 +408,8 @@
       const e = state.filtered[i]; if (!e) return;
       card.querySelector('.card-sub').textContent = `${label(BODY_PART_LABEL, e.body_part)} · ${label(EQUIPMENT_LABEL, e.equipment)}`;
     });
-    if (currentExercise) openModal(currentExercise);
+    if (currentExercise && !backdrop.hidden) openModal(currentExercise);
+    if (!$('#routineBackdrop').hidden) renderRoutineDays();
   }
   $('#langBtn').addEventListener('click', () => setLanguage(state.lang === 'es' ? 'en' : 'es'));
 

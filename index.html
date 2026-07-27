@@ -73,9 +73,20 @@
       </div>
       <h3 data-i18n="labelSteps">Cómo se hace</h3>
       <ol id="modalSteps"></ol>
-      <button class="add-routine-btn" id="modalAddBtn" type="button">
-        <span data-i18n="addToRoutine">Añadir a mi rutina</span>
-      </button>
+
+      <div class="add-block">
+        <button class="add-routine-btn" id="modalAddBtn" type="button">
+          <span data-i18n="addToRoutine">Añadir a mi rutina</span>
+        </button>
+        <div class="day-picker" id="modalDayPicker" hidden></div>
+      </div>
+
+      <div class="alt-section">
+        <button class="alt-toggle" id="altToggle" type="button">
+          <span data-i18n="altToggle">¿Ocupado? Ver alternativas</span>
+        </button>
+        <div class="alt-list" id="altList" hidden></div>
+      </div>
     </div>
   </div>
 </div>
@@ -87,7 +98,7 @@
       <h2 id="routineTitle" data-i18n="myRoutine">Mi rutina</h2>
       <button class="modal-close" id="routineClose" type="button" aria-label="Cerrar">✕</button>
     </div>
-    <ul class="routine-list" id="routineList"></ul>
+    <div class="routine-days" id="routineDays"></div>
     <p class="routine-empty" id="routineEmpty" data-i18n="routineEmpty">Aún no has añadido ejercicios.</p>
   </aside>
 </div>

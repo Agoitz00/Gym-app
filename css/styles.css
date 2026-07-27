@@ -217,7 +217,7 @@ a{ color:var(--chalk); }
 .routine-list{ display:flex; flex-direction:column; gap:10px; }
 .routine-item{
   display:flex; align-items:center; gap:10px; background:var(--panel-2); border:1px solid var(--line);
-  border-radius:9px; padding:8px;
+  border-radius:9px; padding:8px; position:relative;
 }
 .routine-item img{ width:44px; height:44px; border-radius:6px; object-fit:cover; flex-shrink:0; }
 .routine-item .ri-name{ font-size:.82rem; font-weight:600; flex:1; }
@@ -226,6 +226,57 @@ a{ color:var(--chalk); }
 }
 .routine-item button:hover{ color:var(--accent); }
 .routine-empty{ color:var(--muted); font-size:.85rem; text-align:center; margin-top:30px; }
+
+/* ===== Add block (day picker) ===== */
+.add-block{ margin-bottom:14px; }
+.day-picker{
+  margin-top:10px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px;
+  padding:12px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+}
+.day-picker-label{ width:100%; font-size:.75rem; color:var(--muted); margin:0 0 4px; }
+.day-chip{
+  background:var(--panel); border:1px solid var(--line); color:var(--chalk);
+  border-radius:999px; padding:6px 12px; font-size:.78rem; font-weight:600;
+}
+.day-chip:hover{ border-color:var(--accent); color:var(--accent); }
+
+/* ===== Alternatives ===== */
+.alt-section{ border-top:1px solid var(--line); padding-top:14px; }
+.alt-toggle{
+  width:100%; background:none; border:1px dashed var(--line); color:var(--muted);
+  border-radius:9px; padding:10px; font-size:.82rem; font-weight:600;
+}
+.alt-toggle:hover{ border-color:var(--muted-2); color:var(--chalk); }
+.alt-list{ margin-top:12px; }
+.alt-list-title, .swap-pop-title{ font-size:.78rem; color:var(--muted); margin:0 0 10px; }
+.alt-empty{ font-size:.8rem; color:var(--muted); }
+.mini-row{ display:flex; gap:10px; flex-wrap:wrap; }
+.mini-card{
+  width:96px; background:var(--panel-2); border:1px solid var(--line); border-radius:9px;
+  padding:8px; text-align:center; color:inherit;
+}
+.mini-card:hover{ border-color:var(--accent); }
+.mini-card img{ width:80px; height:80px; object-fit:cover; border-radius:6px; margin:0 auto 6px; }
+.mini-name{ display:block; font-size:.7rem; font-weight:600; line-height:1.25; margin-bottom:2px; }
+.mini-eq{ display:block; font-size:.65rem; color:var(--muted); text-transform:capitalize; }
+
+/* ===== Routine days ===== */
+.routine-days{ display:flex; flex-direction:column; gap:20px; }
+.day-heading{
+  font-family:var(--mono); font-size:.75rem; text-transform:uppercase; letter-spacing:1px;
+  color:var(--muted); display:flex; align-items:center; gap:8px; margin-bottom:10px;
+  border-bottom:1px solid var(--line); padding-bottom:6px;
+}
+.day-count{
+  background:var(--panel-2); border-radius:999px; padding:1px 7px; font-size:.68rem; color:var(--chalk);
+}
+.day-empty{ font-size:.75rem; color:var(--muted-2); font-style:italic; }
+.ri-swap{ font-size:1rem !important; }
+.swap-pop{
+  position:absolute; top:100%; left:0; right:0; margin-top:6px; z-index:5;
+  background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);
+}
 
 /* ===== Footer ===== */
 .site-footer{
