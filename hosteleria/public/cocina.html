@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cocina — KDS</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a08;--bg2:#111110;--bg3:#1a1917;--bg4:#222120;
+  --text:#f0ead8;--muted:#7a7060;--border:#252320;
+  --pend:#e09040;--prep:#5588cc;--list:#4caf6e;--gold:#c8a96e;
+  --red:#e05555;--radius:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Lato',sans-serif;background:var(--bg);color:var(--text);height:100vh;height:100dvh;display:flex;flex-direction:column;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+button{font-family:'Lato',sans-serif;cursor:pointer;-webkit-tap-highlight-color:transparent}
+
+header{
+  display:flex;align-items:center;gap:.75rem;
+  padding:max(0px,var(--sat,0px)) 1.1rem 0;
+  min-height:calc(50px + var(--sat,0px));
+  background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;
+}
+header h1{font-size:.95rem;font-weight:900;text-transform:uppercase;letter-spacing:.14em;color:var(--gold)}
+.hclock{font-size:.95rem;font-weight:700;color:var(--muted);min-width:50px}
+.sep{flex:1}
+.counter{padding:3px 10px;border-radius:50px;font-size:.72rem;font-weight:700;letter-spacing:.04em;border:1px solid}
+.cnt-pend{background:rgba(224,144,64,.12);color:var(--pend);border-color:var(--pend)}
+.cnt-prep{background:rgba(85,136,204,.12);color:var(--prep);border-color:var(--prep)}
+.hbtn{padding:5px 11px;border-radius:7px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:.74rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;cursor:pointer;transition:all .14s;text-decoration:none}
+.hbtn:hover{color:var(--gold);border-color:var(--gold)}
+#connDot{width:8px;height:8px;border-radius:50%;background:var(--red);transition:background .3s;flex-shrink:0}
+#connDot.on{background:var(--list);box-shadow:0 0 6px var(--list)}
+#connDot.blink{background:var(--pend);animation:cblink .6s infinite}
+@keyframes cblink{0%,100%{opacity:1}50%{opacity:.25}}
+
+.filter-bar{
+  display:flex;gap:.4rem;padding:.5rem 1.1rem;background:var(--bg2);
+  border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;
+  scrollbar-width:none;align-items:center;
+}
+.filter-bar::-webkit-scrollbar{display:none}
+.fbtn{
+  padding:4px 13px;border-radius:50px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.74rem;font-weight:700;
+  cursor:pointer;transition:all .14s;white-space:nowrap;
+}
+.fbtn:hover{border-color:var(--gold);color:var(--gold)}
+.fbtn.all.act{background:rgba(200,169,110,.15);border-color:var(--gold);color:var(--gold)}
+.fbtn.pend.act{background:rgba(224,144,64,.16);border-color:var(--pend);color:var(--pend)}
+.fbtn.prep.act{background:rgba(85,136,204,.16);border-color:var(--prep);color:var(--prep)}
+.fbtn.new-items{animation:flashNew .5s ease 3}
+@keyframes flashNew{0%,100%{background:transparent}50%{background:rgba(224,144,64,.25)}}
+
+#board{
+  flex:1;overflow-y:auto;
+  padding:.85rem .85rem max(.85rem,calc(.85rem + var(--sab,0px)));
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+  gap:.65rem;align-content:start;
+  -webkit-overflow-scrolling:touch;
+}
+
+/* Tarjeta comanda */
+.cmd-card{
+  background:var(--bg2);border-radius:var(--radius);overflow:hidden;
+  border:1px solid var(--border);transition:border-color .2s;
+  animation:cardIn .22s ease;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.cmd-card.has-new{border-color:var(--pend)}
+.cmd-card.all-ready{border-color:var(--list);opacity:.7}
+
+.cmd-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.55rem .9rem;background:var(--bg3);border-bottom:1px solid var(--border);
+}
+.cmd-mesa{font-size:.9rem;font-weight:900}
+.cmd-info{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.cmd-cam{font-size:.68rem;color:var(--muted)}
+.age-badge{
+  display:inline-block;padding:2px 7px;border-radius:50px;font-size:.64rem;font-weight:700;
+  margin-left:.35rem;
+}
+.age-ok{background:rgba(76,175,110,.14);color:var(--list)}
+.age-warn{background:rgba(224,144,64,.16);color:var(--pend)}
+.age-late{background:rgba(224,85,85,.16);color:var(--red);animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.4}}
+
+.items-list{padding:.35rem .45rem}
+.kds-item{
+  display:flex;align-items:center;gap:.5rem;padding:.45rem .52rem;
+  border-radius:7px;margin:.22rem 0;border:1px solid transparent;transition:all .18s;
+}
+.kds-item.nuevo   {background:rgba(224,144,64,.07);border-color:rgba(224,144,64,.2)}
+.kds-item.pendiente{background:rgba(224,144,64,.07);border-color:rgba(224,144,64,.2)}
+.kds-item.preparando{background:rgba(85,136,204,.08);border-color:rgba(85,136,204,.25)}
+.kds-item.listo   {background:rgba(76,175,110,.07);border-color:rgba(76,175,110,.2)}
+.kds-item.new-flash{animation:flashItem .4s ease}
+@keyframes flashItem{0%{background:rgba(224,144,64,.35)}100%{background:rgba(224,144,64,.07)}}
+
+.qty{
+  min-width:26px;height:26px;border-radius:5px;display:flex;
+  align-items:center;justify-content:center;font-weight:900;font-size:.9rem;flex-shrink:0;
+}
+.pendiente .qty,.nuevo .qty{background:rgba(224,144,64,.28);color:var(--pend)}
+.preparando .qty{background:rgba(85,136,204,.28);color:var(--prep)}
+.listo .qty{background:rgba(76,175,110,.28);color:var(--list)}
+
+.item-nombre{flex:1;font-size:.84rem;font-weight:700}
+.item-nota{font-size:.68rem;color:var(--muted);display:block;margin-top:1px}
+.tick{
+  min-width:30px;height:30px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:.8rem;cursor:pointer;
+  transition:all .14s;display:flex;align-items:center;justify-content:center;font-weight:700;
+}
+.kds-item.pendiente .tick:hover,.kds-item.nuevo .tick:hover{background:var(--prep);border-color:var(--prep);color:#fff}
+.kds-item.preparando .tick:hover{background:var(--list);border-color:var(--list);color:#fff}
+.kds-item.listo .tick{background:rgba(76,175,110,.18);border-color:var(--list);color:var(--list)}
+.tick:active{transform:scale(.88)}
+
+.cmd-actions{
+  display:flex;gap:.4rem;padding:.4rem .5rem .5rem;
+  border-top:1px solid var(--border);
+}
+.cbtn{
+  flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:transparent;
+  color:var(--muted);font-size:.72rem;font-weight:700;cursor:pointer;transition:all .14s;
+}
+.cbtn.prep{border-color:var(--prep);color:var(--prep)}.cbtn.prep:hover{background:var(--prep);color:#fff}
+.cbtn.done{border-color:var(--list);color:var(--list)}.cbtn.done:hover{background:var(--list);color:#fff}
+.cbtn:active{transform:scale(.95)}
+
+.empty-board{
+  grid-column:1/-1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;height:40vh;color:var(--muted);text-align:center;
+}
+.empty-board .ico{font-size:3rem;margin-bottom:.75rem}
+.empty-board h2{font-size:1.05rem;color:var(--text);margin-bottom:.3rem}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:1rem;right:1rem;display:flex;flex-direction:column;gap:.35rem;z-index:99;pointer-events:none}
+.toast{
+  padding:.5rem 1rem;border-radius:7px;font-size:.8rem;font-weight:700;
+  animation:tIn .22s ease;border:1px solid;white-space:nowrap;
+}
+@keyframes tIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+.toast.ok{background:rgba(76,175,110,.12);border-color:var(--list);color:var(--list)}
+.toast.info{background:rgba(200,169,110,.1);border-color:var(--gold);color:var(--gold)}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:2px}
+
+  /* ── iOS / Safe Area ── */
+  :root{
+    --sat: env(safe-area-inset-top,0px);
+    --sab: env(safe-area-inset-bottom,0px);
+    --sal: env(safe-area-inset-left,0px);
+    --sar: env(safe-area-inset-right,0px);
+  }
+  html{ -webkit-text-size-adjust:100%; overscroll-behavior:none; }
+  body{ -webkit-touch-callout:none; touch-action:manipulation; }
+  /* Todos los inputs ≥16px para evitar auto-zoom en iOS */
+  input,select,textarea{ font-size:max(16px,.86rem)!important; }
+  /* Targets táctiles ≥44px (Apple HIG) */
+  .btn,.cat-pill,.np-btn,.nbtn,.cbtn,.topbtn,.hbtn,.nav-item,.cam-btn,
+  .zona-tab,.fbtn,.tick,.mesa-card,.prod-card,.kds-item{ min-height:44px; }
+  /* GPU layers para animaciones suaves */
+  .mesa-card,.prod-card,.kds-item,.cmd-card{ will-change:transform; transform:translateZ(0); }
+  /* Scroll inercial */
+  .prod-grid,#board,.order-items,.content{ -webkit-overflow-scrolling:touch; }
+  /* Evitar flash blanco */
+  html,body{ background-color:#0f0e0c; }
+</style>
+
+  <!-- PWA + iOS -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="TPV">
+  <meta name="theme-color" content="#0f0e0c">
+  <link rel="apple-touch-icon" href="/icons/icon-180.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-180.png">
+  <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-167.png">
+</head>
+<body>
+<header>
+  <h1>👨‍🍳 Cocina</h1>
+  <span class="hclock" id="clock">--:--</span>
+  <span class="sep"></span>
+  <span class="counter cnt-pend" id="cntPend">0 pendientes</span>
+  <span class="counter cnt-prep" id="cntPrep">0 preparando</span>
+  <button class="hbtn" id="soundBtn" onclick="toggleSound()" title="Activar/desactivar alerta sonora">🔔</button>
+  <div id="connDot" title="Estado conexión"></div>
+  <a href="/tpv" class="hbtn">← TPV</a>
+</header>
+
+<div class="filter-bar">
+  <button class="fbtn all act" data-f="all" onclick="setFiltro('all',this)">Todos</button>
+  <button class="fbtn pend" data-f="pendiente" onclick="setFiltro('pendiente',this)">⏳ Pendiente</button>
+  <button class="fbtn prep" data-f="preparando" onclick="setFiltro('preparando',this)">🔥 Preparando</button>
+</div>
+
+<div id="board"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+let items = [], filtro = 'all', soundOn = true;
+let prevPendCount = 0;
+let sseRetry = 1000;
+const $ = id => document.getElementById(id);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+// ── RELOJ ─────────────────────────────────────────────────────────────────────
+function tick() {
+  $('clock').textContent = new Date().toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+}
+tick(); setInterval(tick, 15000);
+
+// ── AUDIO ─────────────────────────────────────────────────────────────────────
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  return audioCtx;
+}
+function beep(freq=880, dur=0.15, vol=0.3, delay=0) {
+  try {
+    const ctx = getAudioCtx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(vol, ctx.currentTime + delay);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + dur);
+    o.start(ctx.currentTime + delay);
+    o.stop(ctx.currentTime + delay + dur + 0.05);
+  } catch {}
+}
+function playNewOrder() {
+  if (!soundOn) return;
+  beep(880, 0.12, 0.35, 0);
+  beep(1100, 0.12, 0.28, 0.18);
+  beep(1320, 0.15, 0.22, 0.36);
+}
+function playAllReady() {
+  if (!soundOn) return;
+  beep(660, 0.1, 0.25, 0);
+  beep(880, 0.1, 0.2, 0.12);
+}
+
+function toggleSound() {
+  soundOn = !soundOn;
+  $('soundBtn').textContent = soundOn ? '🔔' : '🔕';
+  $('soundBtn').title = soundOn ? 'Sonido activado' : 'Sonido silenciado';
+}
+
+// ── SSE ───────────────────────────────────────────────────────────────────────
+function connectSSE() {
+  const dot = $('connDot');
+  dot.className = 'blink';
+
+  const es = new EventSource('/api/events');
+
+  es.addEventListener('connected', () => {
+    dot.className = 'on';
+    sseRetry = 1000;
+  });
+
+  es.addEventListener('cocina', e => {
+    const data = JSON.parse(e.data);
+    if (data.type === 'new_items') {
+      load(true); // highlight=true para nuevos
+    } else {
+      load(false);
+    }
+  });
+
+  es.onerror = () => {
+    es.close();
+    dot.className = 'blink';
+    setTimeout(() => {
+      sseRetry = Math.min(sseRetry * 1.5, 30000);
+      connectSSE();
+    }, sseRetry);
+  };
+}
+
+// ── FILTRO ────────────────────────────────────────────────────────────────────
+function setFiltro(f, btn) {
+  filtro = f;
+  document.querySelectorAll('.fbtn').forEach(b => {
+    b.classList.toggle('act', b.dataset.f === f);
+  });
+  render(false);
+}
+
+// ── TIEMPO TRANSCURRIDO ───────────────────────────────────────────────────────
+function minsAgo(dt) {
+  try { return Math.floor((Date.now() - new Date(dt).getTime()) / 60000); }
+  catch { return 0; }
+}
+function ageBadge(mins) {
+  if (mins < 6)  return `<span class="age-badge age-ok">${mins}min</span>`;
+  if (mins < 14) return `<span class="age-badge age-warn">⚠ ${mins}min</span>`;
+  return `<span class="age-badge age-late">🔴 ${mins}min</span>`;
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+let prevItemIds = new Set();
+
+function render(highlightNew = false) {
+  const board = $('board');
+  const filtered = filtro === 'all' ? items : items.filter(i => i.estado === filtro);
+
+  // Agrupar por comanda
+  const cmds = {};
+  filtered.forEach(i => {
+    if (!cmds[i.comanda_id]) cmds[i.comanda_id] = {
+      id: i.comanda_id, mesa: i.mesa_nombre, cam: i.camarero, at: i.comanda_at, items: []
+    };
+    cmds[i.comanda_id].items.push(i);
+  });
+
+  const pendCount = items.filter(i => i.estado === 'pendiente').length;
+  const prepCount = items.filter(i => i.estado === 'preparando').length;
+  $('cntPend').textContent = `${pendCount} pendiente${pendCount !== 1 ? 's' : ''}`;
+  $('cntPrep').textContent = `${prepCount} preparando`;
+
+  const cards = Object.values(cmds);
+  if (!cards.length) {
+    board.innerHTML = `<div class="empty-board">
+      <div class="ico">✅</div>
+      <h2>¡Todo al día!</h2>
+      <p style="font-size:.82rem">No hay pedidos pendientes en cocina</p>
+    </div>`;
+    prevItemIds = new Set();
+    return;
+  }
+
+  const newIds = new Set(items.map(i => i.id));
+
+  board.innerHTML = cards.map(cmd => {
+    const mins = minsAgo(cmd.at);
+    const hasPend = cmd.items.some(i => i.estado === 'pendiente');
+    const hasPrep = cmd.items.some(i => i.estado === 'preparando');
+    const allListo = cmd.items.every(i => i.estado === 'listo');
+
+    return `<div class="cmd-card ${hasPend ? 'has-new' : ''} ${allListo ? 'all-ready' : ''}">
+      <div class="cmd-head">
+        <span class="cmd-mesa">${esc(cmd.mesa)} ${ageBadge(mins)}</span>
+        <div class="cmd-info">
+          ${cmd.cam ? `<span class="cmd-cam">${esc(cmd.cam)}</span>` : ''}
+        </div>
+      </div>
+      <div class="items-list">
+        ${cmd.items.map(it => {
+          const isNew = highlightNew && !prevItemIds.has(it.id);
+          return `<div class="kds-item ${it.estado}${isNew?' new-flash':''}" id="ki-${it.id}">
+            <span class="qty">${it.cantidad}</span>
+            <span class="item-nombre">${esc(it.nombre)}${it.notas?`<span class="item-nota">📝 ${esc(it.notas)}</span>`:''}</span>
+            <button class="tick" onclick="nextEstado(${it.id},'${it.estado}')">
+              ${it.estado === 'listo' ? '✓' : '→'}
+            </button>
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="cmd-actions">
+        ${hasPend ? `<button class="cbtn prep" onclick="allEstado(${cmd.id},'preparando',['pendiente'])">▶ Todo preparando</button>` : ''}
+        ${hasPrep ? `<button class="cbtn done" onclick="allEstado(${cmd.id},'listo',['preparando'])">✓ Todo listo</button>` : ''}
+        ${!hasPend && !hasPrep ? `<button class="cbtn done" onclick="allEstado(${cmd.id},'entregado',['listo'])">↗ Entregado</button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+
+  prevItemIds = newIds;
+}
+
+// ── CAMBIAR ESTADO ────────────────────────────────────────────────────────────
+async function nextEstado(id, actual) {
+  const next = { pendiente: 'preparando', preparando: 'listo', listo: 'entregado' }[actual] || actual;
+  // Optimistic update
+  const item = items.find(i => i.id === id);
+  if (item) { item.estado = next; render(false); }
+  try {
+    await fetch(`/api/cocina/item/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: next })
+    });
+    if (next === 'listo') playAllReady();
+    // Reload completo para sincronizar (items entregados desaparecen)
+    if (next === 'entregado') await load(false);
+  } catch {
+    if (item) item.estado = actual; // revert
+    render(false);
+  }
+}
+
+async function allEstado(cmdId, next, fromList) {
+  const targets = items.filter(i => i.comanda_id === cmdId && fromList.includes(i.estado));
+  // Optimistic
+  targets.forEach(i => i.estado = next);
+  render(false);
+  if (next === 'listo') playAllReady();
+
+  try {
+    await Promise.all(targets.map(i =>
+      fetch(`/api/cocina/item/${i.id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: next })
+      })
+    ));
+    if (next === 'entregado') await load(false);
+  } catch {
+    // Reload a true state on error
+    await load(false);
+  }
+}
+
+// ── CARGAR DATOS ──────────────────────────────────────────────────────────────
+async function load(highlightNew = false) {
+  try {
+    const data = await fetch('/api/cocina').then(r => r.json());
+
+    // Detectar nuevos items vs anteriores
+    const oldIds = new Set(items.map(i => i.id));
+    const newCount = data.filter(i => !oldIds.has(i.id) && i.estado === 'pendiente').length;
+
+    if (newCount > 0 && highlightNew) {
+      playNewOrder();
+      // Flashear el filtro "Pendiente"
+      const btn = document.querySelector('.fbtn.pend');
+      if (btn) { btn.classList.add('new-items'); setTimeout(() => btn.classList.remove('new-items'), 1500); }
+    }
+
+    items = data;
+    render(highlightNew);
+  } catch (e) {
+    console.error('Error loading KDS:', e);
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────────
+function toast(msg, type='ok') {
+  const wrap = $('toastWrap');
+  const d = document.createElement('div');
+  d.className = `toast ${type}`; d.textContent = msg;
+  wrap.appendChild(d);
+  setTimeout(() => d.remove(), 2500);
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+load(false);
+connectSSE();
+// Fallback polling cada 8s (por si SSE falla)
+setInterval(() => load(false), 8000);
+</script>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg=>{
+      reg.addEventListener('updatefound',()=>{
+        const nw=reg.installing;
+        nw.addEventListener('statechange',()=>{
+          if(nw.state==='installed'&&navigator.serviceWorker.controller) nw.postMessage('skipWaiting');
+        });
+      });
+    }).catch(()=>{});
+  navigator.serviceWorker.addEventListener('controllerchange',()=>location.reload());
+}
+window._haptic=(t='light')=>{ if(navigator.vibrate) navigator.vibrate({light:10,medium:20,heavy:50}[t]||10); };
+
+// ── SCREEN WAKE LOCK (pantalla siempre encendida) ────────────────────────────
+(async()=>{
+  if(!('wakeLock' in navigator))return;
+  let wl=null;
+  const req=async()=>{try{wl=await navigator.wakeLock.request('screen');}catch{}};
+  await req();
+  document.addEventListener('visibilitychange',async()=>{if(document.visibilityState==='visible')await req();});
+})();
+</script>
+</body>
+</html>
