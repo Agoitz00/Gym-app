@@ -9,11 +9,14 @@
       emptyTitle: 'No hay ejercicios con esos filtros.', emptyReset: 'Quitar filtros',
       labelTarget: 'Músculo objetivo', labelEquipment: 'Equipo', labelSecondary: 'Músculos secundarios',
       labelSteps: 'Cómo se hace', addToRoutine: 'Añadir a mi rutina', chooseDay: 'Elige un día:',
-      routineEmpty: 'Aún no has añadido ejercicios a tu semana.', footerData: 'Datos de ejercicios',
+      routineEmpty: 'Aún no has añadido ejercicios.', footerData: 'Datos de ejercicios',
       footerMedia: 'Imágenes y animaciones', results: (n) => `${n} ejercicios`,
       altToggle: '¿Ocupado? Ver alternativas', altTitle: 'Mismo músculo, otro equipo:',
       altEmpty: 'No hay alternativas con otro equipo para este ejercicio.',
       dayEmpty: 'Sin ejercicios.', swap: 'Cambiar', swapTitle: 'Elige un sustituto para', addedFlash: '¡Añadido!',
+      exportBtn: '⬇ Exportar', importBtn: '⬆ Importar', addDayBtn: '+ Añadir', addDayPlaceholder: 'Nuevo día (ej. Piernas)',
+      importOk: 'Rutina importada.', importErr: 'Ese archivo no es una rutina válida.',
+      removeDayConfirm: '¿Quitar este día y sus ejercicios?',
     },
     en: {
       tagline: 'Exercise library', myRoutine: 'My routine',
@@ -21,25 +24,15 @@
       emptyTitle: 'No exercises match those filters.', emptyReset: 'Clear filters',
       labelTarget: 'Target muscle', labelEquipment: 'Equipment', labelSecondary: 'Secondary muscles',
       labelSteps: 'How to do it', addToRoutine: 'Add to my routine', chooseDay: 'Pick a day:',
-      routineEmpty: 'No exercises in your week yet.', footerData: 'Exercise data',
+      routineEmpty: 'No exercises added yet.', footerData: 'Exercise data',
       footerMedia: 'Images & animations', results: (n) => `${n} exercises`,
       altToggle: 'Occupied? See alternatives', altTitle: 'Same muscle, different equipment:',
       altEmpty: 'No alternatives with different equipment for this exercise.',
       dayEmpty: 'No exercises.', swap: 'Swap', swapTitle: 'Pick a substitute for', addedFlash: 'Added!',
+      exportBtn: '⬇ Export', importBtn: '⬆ Import', addDayBtn: '+ Add', addDayPlaceholder: 'New day (e.g. Legs)',
+      importOk: 'Routine imported.', importErr: 'That file is not a valid routine.',
+      removeDayConfirm: 'Remove this day and its exercises?',
     },
-  };
-
-  const DAYS = [
-    { key: 'lun', es: 'Lunes', en: 'Monday' }, { key: 'mar', es: 'Martes', en: 'Tuesday' },
-    { key: 'mie', es: 'Miércoles', en: 'Wednesday' }, { key: 'jue', es: 'Jueves', en: 'Thursday' },
-    { key: 'vie', es: 'Viernes', en: 'Friday' }, { key: 'sab', es: 'Sábado', en: 'Saturday' },
-    { key: 'dom', es: 'Domingo', en: 'Sunday' },
-  ];
-  const dayLabel = (key, short = false) => {
-    const d = DAYS.find(d => d.key === key);
-    if (!d) return key;
-    const full = d[state.lang];
-    return short ? full.slice(0, 3) : full;
   };
 
   const BODY_PART_LABEL = {
@@ -62,7 +55,7 @@
     'bosu ball': { es: 'Bosu', en: 'Bosu ball' }, cable: { es: 'Polea', en: 'Cable' },
     dumbbell: { es: 'Mancuerna', en: 'Dumbbell' }, 'elliptical machine': { es: 'Elíptica', en: 'Elliptical machine' },
     'ez barbell': { es: 'Barra Z', en: 'EZ barbell' }, hammer: { es: 'Máquina Hammer', en: 'Hammer' },
-    kettlebell: { es: 'Pesa rusa', en: 'Kettlebell' }, 'leverage machine': { es: 'Máquina de palanca', en: 'Leverage machine' },
+    kettlebell: { es: 'Pesa rusa', en: 'Kettlebell' }, 'leverage machine': { es: 'Máquina', en: 'Machine' },
     'medicine ball': { es: 'Balón medicinal', en: 'Medicine ball' }, 'olympic barbell': { es: 'Barra olímpica', en: 'Olympic barbell' },
     'resistance band': { es: 'Banda de resistencia', en: 'Resistance band' }, roller: { es: 'Rodillo', en: 'Roller' },
     rope: { es: 'Cuerda', en: 'Rope' }, 'skierg machine': { es: 'Máquina SkiErg', en: 'SkiErg machine' },
@@ -72,6 +65,7 @@
     'trap bar': { es: 'Barra hexagonal', en: 'Trap bar' }, 'upper body ergometer': { es: 'Ergómetro de brazos', en: 'Upper body ergometer' },
     weighted: { es: 'Con peso añadido', en: 'Weighted' }, 'wheel roller': { es: 'Rueda abdominal', en: 'Wheel roller' },
   };
+  const EQUIPMENT_PRIORITY = ['leverage machine', 'cable', 'barbell', 'dumbbell'];
   const TARGET_LABEL = {
     abductors: { es: 'Abductores', en: 'Abductors' }, abs: { es: 'Abdominales', en: 'Abs' },
     adductors: { es: 'Aductores', en: 'Adductors' }, biceps: { es: 'Bíceps', en: 'Biceps' },
@@ -86,17 +80,32 @@
   };
   const label = (map, key) => (map[key] ? map[key][state.lang] : key);
 
-  /* ---------- State ---------- */
-  const emptyRoutine = () => Object.fromEntries(DAYS.map(d => [d.key, []]));
-
+  /* ---------- Routine data model ----------
+     state.routine = [{ id, name: {es,en}|string, exercises: [ids] }, ...]  */
+  function defaultRoutine() {
+    return [
+      { id: 'pecho', name: { es: 'Pecho', en: 'Chest' }, exercises: [] },
+      { id: 'espalda', name: { es: 'Espalda', en: 'Back' }, exercises: [] },
+      { id: 'piernas', name: { es: 'Piernas', en: 'Legs' }, exercises: [] },
+      { id: 'hombros', name: { es: 'Hombros', en: 'Shoulders' }, exercises: [] },
+      { id: 'brazos', name: { es: 'Brazos', en: 'Arms' }, exercises: [] },
+      { id: 'abdomen', name: { es: 'Abdomen', en: 'Abs' }, exercises: [] },
+      { id: 'cardio', name: { es: 'Cardio', en: 'Cardio' }, exercises: [] },
+    ];
+  }
+  function dayName(day) { return typeof day.name === 'string' ? day.name : day.name[state.lang]; }
+  function isValidRoutine(data) {
+    return Array.isArray(data) && data.every(d => d && typeof d.id !== 'undefined' && d.name && Array.isArray(d.exercises));
+  }
   function loadRoutine() {
     try {
-      const raw = JSON.parse(localStorage.getItem('cargadero_routine') || 'null');
-      if (raw && !Array.isArray(raw) && DAYS.every(d => Array.isArray(raw[d.key]))) return raw;
+      const raw = JSON.parse(localStorage.getItem('agoitzgym_routine') || 'null');
+      if (isValidRoutine(raw)) return raw;
     } catch {}
-    return emptyRoutine();
+    return defaultRoutine();
   }
 
+  /* ---------- State ---------- */
   const state = {
     lang: 'es',
     all: [], filtered: [],
@@ -121,11 +130,15 @@
   });
 
   function buildEquipmentOptions() {
-    const values = [...new Set(state.all.map(e => e.equipment))].sort();
+    const found = [...new Set(state.all.map(e => e.equipment))];
+    const priority = EQUIPMENT_PRIORITY.filter(v => found.includes(v));
+    const rest = found.filter(v => !EQUIPMENT_PRIORITY.includes(v)).sort();
     const sel = $('#equipmentSelect');
-    values.forEach(v => {
+    [...priority, null, ...rest].forEach(v => {
+      if (v === null) { sel.appendChild(document.createElement('hr')); return; }
       const opt = document.createElement('option');
       opt.value = v; opt.textContent = label(EQUIPMENT_LABEL, v);
+      if (priority.includes(v)) opt.className = 'opt-priority';
       sel.appendChild(opt);
     });
     sel.addEventListener('change', () => { state.activeEquipment = sel.value; applyFilters(); });
@@ -213,7 +226,6 @@
       .filter(e => e.id !== exercise.id && e.target === exercise.target && e.equipment !== exercise.equipment)
       .slice(0, limit);
   }
-
   function miniCard(e, onClick) {
     const el = document.createElement('button');
     el.type = 'button'; el.className = 'mini-card';
@@ -254,7 +266,7 @@
 
   function renderDayPicker(container, onPick) {
     container.innerHTML = `<p class="day-picker-label">${UI[state.lang].chooseDay}</p>` +
-      DAYS.map(d => `<button type="button" class="day-chip" data-day="${d.key}">${dayLabel(d.key, true)}</button>`).join('');
+      state.routine.map(d => `<button type="button" class="day-chip" data-day="${d.id}">${dayName(d)}</button>`).join('');
     container.querySelectorAll('.day-chip').forEach(btn => {
       btn.addEventListener('click', () => onPick(btn.dataset.day));
     });
@@ -263,8 +275,8 @@
   $('#modalAddBtn').addEventListener('click', () => {
     const picker = $('#modalDayPicker');
     if (picker.hidden) {
-      renderDayPicker(picker, (day) => {
-        addToRoutine(day, currentExercise.id);
+      renderDayPicker(picker, (dayId) => {
+        addToRoutine(dayId, currentExercise.id);
         $('#modalAddBtn').textContent = UI[state.lang].addedFlash;
         picker.hidden = true;
         setTimeout(() => { if (currentExercise) $('#modalAddBtn').textContent = UI[state.lang].addToRoutine; }, 1200);
@@ -293,50 +305,58 @@
     list.hidden = false;
   });
 
-  /* ---------- Routine (por día) ---------- */
-  function saveRoutine() { localStorage.setItem('cargadero_routine', JSON.stringify(state.routine)); }
+  /* ---------- Routine ---------- */
+  function saveRoutine() { localStorage.setItem('agoitzgym_routine', JSON.stringify(state.routine)); }
+  function findDay(dayId) { return state.routine.find(d => d.id === dayId); }
 
-  function addToRoutine(day, id) {
-    if (!state.routine[day].includes(id)) state.routine[day].push(id);
+  function addToRoutine(dayId, id) {
+    const day = findDay(dayId); if (!day) return;
+    if (!day.exercises.includes(id)) day.exercises.push(id);
     saveRoutine();
     updateRoutineBadge();
     if (!$('#routineBackdrop').hidden) renderRoutineDays();
   }
-  function removeFromRoutine(day, id) {
-    state.routine[day] = state.routine[day].filter(x => x !== id);
+  function removeFromRoutine(dayId, id) {
+    const day = findDay(dayId); if (!day) return;
+    day.exercises = day.exercises.filter(x => x !== id);
     saveRoutine();
     updateRoutineBadge();
     renderRoutineDays();
   }
-  function swapInRoutine(day, oldId, newId) {
-    const i = state.routine[day].indexOf(oldId);
-    if (i !== -1) state.routine[day][i] = newId;
+  function swapInRoutine(dayId, oldId, newId) {
+    const day = findDay(dayId); if (!day) return;
+    const i = day.exercises.indexOf(oldId);
+    if (i !== -1) day.exercises[i] = newId;
     saveRoutine();
     renderRoutineDays();
   }
+  function removeDay(dayId) {
+    if (!confirm(UI[state.lang].removeDayConfirm)) return;
+    state.routine = state.routine.filter(d => d.id !== dayId);
+    saveRoutine(); updateRoutineBadge(); renderRoutineDays();
+  }
   function updateRoutineBadge() {
-    const total = DAYS.reduce((n, d) => n + state.routine[d.key].length, 0);
+    const total = state.routine.reduce((n, d) => n + d.exercises.length, 0);
     $('#routineCount').textContent = total;
   }
 
   function renderRoutineDays() {
     const container = $('#routineDays');
-    const total = DAYS.reduce((n, d) => n + state.routine[d.key].length, 0);
-    $('#routineEmpty').hidden = total > 0;
+    $('#routineEmpty').hidden = state.routine.length > 0;
     container.innerHTML = '';
-    DAYS.forEach(d => {
-      const ids = state.routine[d.key];
+    state.routine.forEach(d => {
       const section = document.createElement('div');
       section.className = 'day-section';
-      section.innerHTML = `<h3 class="day-heading">${dayLabel(d.key)} <span class="day-count">${ids.length}</span></h3>`;
-      if (!ids.length) {
+      section.innerHTML = `<h3 class="day-heading">${dayName(d)} <span class="day-count">${d.exercises.length}</span><button type="button" class="day-remove" aria-label="Quitar día">✕</button></h3>`;
+      section.querySelector('.day-remove').addEventListener('click', () => removeDay(d.id));
+      if (!d.exercises.length) {
         const p = document.createElement('p');
         p.className = 'day-empty'; p.textContent = UI[state.lang].dayEmpty;
         section.appendChild(p);
       } else {
         const list = document.createElement('ul');
         list.className = 'routine-list';
-        ids.forEach(id => {
+        d.exercises.forEach(id => {
           const ex = state.all.find(e => e.id === id);
           if (!ex) return;
           const li = document.createElement('li');
@@ -346,8 +366,8 @@
             <span class="ri-name">${ex.name}</span>
             <button type="button" class="ri-swap" title="${UI[state.lang].swap}">⇄</button>
             <button type="button" class="ri-remove" aria-label="Quitar">✕</button>`;
-          li.querySelector('.ri-remove').addEventListener('click', () => removeFromRoutine(d.key, id));
-          li.querySelector('.ri-swap').addEventListener('click', (ev) => openSwapPicker(ev.currentTarget, d.key, ex));
+          li.querySelector('.ri-remove').addEventListener('click', () => removeFromRoutine(d.id, id));
+          li.querySelector('.ri-swap').addEventListener('click', (ev) => openSwapPicker(ev.currentTarget, d.id, ex));
           list.appendChild(li);
         });
         section.appendChild(list);
@@ -356,7 +376,7 @@
     });
   }
 
-  function openSwapPicker(anchorBtn, day, exercise) {
+  function openSwapPicker(anchorBtn, dayId, exercise) {
     document.querySelectorAll('.swap-pop').forEach(p => p.remove());
     const alts = getAlternatives(exercise);
     const pop = document.createElement('div');
@@ -367,7 +387,7 @@
       pop.innerHTML = `<p class="swap-pop-title">${UI[state.lang].swapTitle} ${exercise.name}</p>`;
       const row = document.createElement('div'); row.className = 'mini-row';
       alts.forEach(a => row.appendChild(miniCard(a, (picked) => {
-        swapInRoutine(day, exercise.id, picked.id);
+        swapInRoutine(dayId, exercise.id, picked.id);
         pop.remove();
       })));
       pop.appendChild(row);
@@ -383,6 +403,40 @@
   $('#routineBtn').addEventListener('click', openRoutine);
   $('#routineClose').addEventListener('click', closeRoutine);
   $('#routineBackdrop').addEventListener('click', (ev) => { if (ev.target.id === 'routineBackdrop') closeRoutine(); });
+
+  $('#addDayForm').addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    const input = $('#addDayInput');
+    const name = input.value.trim();
+    if (!name) return;
+    state.routine.push({ id: 'custom_' + Date.now(), name, exercises: [] });
+    input.value = '';
+    saveRoutine();
+    renderRoutineDays();
+  });
+
+  /* ---------- Export / Import ---------- */
+  $('#exportBtn').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(state.routine, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'mi-rutina-agoitz-gym.json'; a.click();
+    URL.revokeObjectURL(url);
+  });
+  $('#importBtn').addEventListener('click', () => $('#importFile').click());
+  $('#importFile').addEventListener('change', async (ev) => {
+    const file = ev.target.files[0]; ev.target.value = '';
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      if (!isValidRoutine(data)) throw new Error('bad shape');
+      state.routine = data;
+      saveRoutine(); updateRoutineBadge(); renderRoutineDays();
+      alert(UI[state.lang].importOk);
+    } catch {
+      alert(UI[state.lang].importErr);
+    }
+  });
 
   /* ---------- Language ---------- */
   function setLanguage(lang) {

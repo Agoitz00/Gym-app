@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Cargadero — Biblioteca de ejercicios</title>
+<title>Agoitz Gym — Biblioteca de ejercicios</title>
 <meta name="description" content="1.324 ejercicios de gimnasio con animación, instrucciones y filtros por grupo muscular y equipo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,7 +17,7 @@
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">45</span>
       <div class="brand-text">
-        <h1 class="brand-title">Cargadero</h1>
+        <h1 class="brand-title">Agoitz Gym</h1>
         <p class="brand-sub" data-i18n="tagline">Biblioteca de ejercicios</p>
       </div>
     </div>
@@ -98,8 +98,17 @@
       <h2 id="routineTitle" data-i18n="myRoutine">Mi rutina</h2>
       <button class="modal-close" id="routineClose" type="button" aria-label="Cerrar">✕</button>
     </div>
+    <div class="routine-io">
+      <button type="button" id="exportBtn" class="io-btn" data-i18n="exportBtn">⬇ Exportar</button>
+      <button type="button" id="importBtn" class="io-btn" data-i18n="importBtn">⬆ Importar</button>
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </div>
     <div class="routine-days" id="routineDays"></div>
     <p class="routine-empty" id="routineEmpty" data-i18n="routineEmpty">Aún no has añadido ejercicios.</p>
+    <form class="add-day-form" id="addDayForm">
+      <input type="text" id="addDayInput" data-i18n-placeholder="addDayPlaceholder" placeholder="Nuevo día (ej. Piernas)">
+      <button type="submit" data-i18n="addDayBtn">+ Añadir</button>
+    </form>
   </aside>
 </div>
 

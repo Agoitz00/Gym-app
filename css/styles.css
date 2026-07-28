@@ -267,6 +267,10 @@ a{ color:var(--chalk); }
   color:var(--muted); display:flex; align-items:center; gap:8px; margin-bottom:10px;
   border-bottom:1px solid var(--line); padding-bottom:6px;
 }
+.day-heading .day-remove{
+  margin-left:auto; background:none; border:none; color:var(--muted-2); font-size:.85rem; padding:2px 4px;
+}
+.day-heading .day-remove:hover{ color:var(--accent); }
 .day-count{
   background:var(--panel-2); border-radius:999px; padding:1px 7px; font-size:.68rem; color:var(--chalk);
 }
@@ -277,6 +281,25 @@ a{ color:var(--chalk); }
   background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:12px;
   box-shadow:0 8px 24px rgba(0,0,0,.5);
 }
+
+/* ===== Import/export + add day ===== */
+.routine-io{ display:flex; gap:8px; margin-bottom:16px; }
+.io-btn{
+  flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--chalk);
+  border-radius:8px; padding:8px; font-size:.78rem; font-weight:600;
+}
+.io-btn:hover{ border-color:var(--muted-2); }
+.add-day-form{ display:flex; gap:8px; margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
+.add-day-form input{
+  flex:1; background:var(--panel-2); border:1px solid var(--line); color:var(--chalk);
+  border-radius:8px; padding:9px 11px; font-size:.82rem; font-family:var(--body); min-width:0;
+}
+.add-day-form button{
+  background:var(--accent); color:var(--accent-ink); border:none; border-radius:8px;
+  padding:9px 14px; font-weight:700; font-size:.8rem; white-space:nowrap;
+}
+.add-day-form button:hover{ filter:brightness(1.08); }
+#equipmentSelect option.opt-priority{ font-weight:700; }
 
 /* ===== Footer ===== */
 .site-footer{
