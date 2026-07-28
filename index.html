@@ -24,6 +24,7 @@
     <div class="topbar-actions">
       <button class="lang-btn" id="langBtn" type="button" aria-label="Cambiar idioma">ES</button>
       <button class="routine-btn" id="routineBtn" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8v8M8 5v14M16 5v14M20 8v8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
         <span data-i18n="myRoutine">Mi rutina</span>
         <span class="routine-count" id="routineCount">0</span>
       </button>
@@ -43,7 +44,10 @@
     <div class="plate-rack" id="plateRack" role="group" aria-label="Filtrar por parte del cuerpo"></div>
   </section>
 
-  <p class="result-count" id="resultCount"></p>
+  <div class="result-row">
+    <span class="result-count" id="resultCount"></span>
+    <button type="button" class="clear-all-chip" id="clearAllChip" hidden data-i18n="emptyReset">Quitar filtros</button>
+  </div>
 
   <section class="grid" id="grid" aria-live="polite"></section>
 

@@ -117,6 +117,13 @@
   const $ = (sel) => document.querySelector(sel);
   const grid = $('#grid'), sentinel = $('#sentinel');
 
+  grid.innerHTML = Array.from({ length: 12 }).map(() => `
+    <div class="skeleton-card">
+      <div class="skeleton-media"></div>
+      <div class="skeleton-line"></div>
+      <div class="skeleton-line short"></div>
+    </div>`).join('');
+
   /* ---------- Load data ---------- */
   fetch('data.json').then(r => r.json()).then(data => {
     state.all = data;
@@ -176,12 +183,18 @@
     grid.innerHTML = '';
     $('#emptyState').hidden = state.filtered.length > 0;
     $('#resultCount').textContent = UI[state.lang].results(state.filtered.length);
+    $('#clearAllChip').hidden = !(state.activeParts.size || state.activeEquipment || state.query);
     if (state.filtered.length) renderMore();
   }
 
   function renderMore() {
     const next = state.filtered.slice(state.shown, state.shown + state.pageSize);
-    next.forEach(e => grid.appendChild(cardFor(e)));
+    next.forEach((e, i) => {
+      const card = cardFor(e);
+      if (state.shown === 0) card.style.animationDelay = Math.min(i, 12) * 25 + 'ms';
+      else card.style.animation = 'none';
+      grid.appendChild(card);
+    });
     state.shown += next.length;
   }
 
@@ -194,6 +207,9 @@
         <span class="card-chip" style="background:${PLATE_COLOR[e.body_part]}"></span>
         <img src="${e.image}" alt="" loading="lazy">
         <img class="gif" data-src="${e.gif}" alt="" loading="lazy">
+        <span class="play-hint" aria-hidden="true">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 4l14 8-14 8V4z" fill="#edeae3"/></svg>
+        </span>
       </div>
       <div class="card-info">
         <span class="card-name">${e.name}</span>
@@ -213,12 +229,14 @@
   }, { rootMargin: '400px' }).observe(sentinel);
 
   $('#searchInput').addEventListener('input', (e) => { state.query = e.target.value; applyFilters(); });
-  $('#resetFilters').addEventListener('click', () => {
+  function clearAllFilters() {
     state.activeParts.clear(); state.activeEquipment = ''; state.query = '';
     $('#searchInput').value = ''; $('#equipmentSelect').value = '';
     document.querySelectorAll('.plate-chip.active').forEach(b => b.classList.remove('active'));
     applyFilters();
-  });
+  }
+  $('#resetFilters').addEventListener('click', clearAllFilters);
+  $('#clearAllChip').addEventListener('click', clearAllFilters);
 
   /* ---------- Alternatives (same target, different equipment) ---------- */
   function getAlternatives(exercise, limit = 4) {
