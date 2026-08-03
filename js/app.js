@@ -20,10 +20,10 @@
       series: 'Series', reps: 'Reps', peso: 'Peso',
       progressTitle: 'Tu progreso', progressEmpty: 'Aún no hay historial — regístralo desde Modo entrenamiento.',
       train: '▶ Entrenar', exit: 'Salir', prevExercise: '← Anterior', nextExercise: 'Siguiente →',
-      markDone: 'Hecho, descansar', skip: 'Saltar', workoutFinished: '¡Entrenamiento completado!',
+      markDone: 'Hecho, descansar', skip: 'Saltar', workoutFinished: '¡Entrenamiento completado!', finishBtn: '✓ Finalizar',
       newProgram: 'Nuevo programa', programName: 'Nombre del programa:', renameProgram: 'Nuevo nombre:',
       deleteProgramConfirm: '¿Borrar este programa entero?', cantDeleteLast: 'Necesitas al menos un programa.',
-      set: 'Serie',
+      set: 'Serie', noDaysYet: 'Este programa aún no tiene días — añade uno desde "Mi rutina".',
     },
     en: {
       tagline: 'Exercise library', myRoutine: 'My routine',
@@ -42,10 +42,10 @@
       series: 'Sets', reps: 'Reps', peso: 'Weight',
       progressTitle: 'Your progress', progressEmpty: 'No history yet — log it from Workout mode.',
       train: '▶ Train', exit: 'Exit', prevExercise: '← Previous', nextExercise: 'Next →',
-      markDone: 'Done, rest', skip: 'Skip', workoutFinished: 'Workout complete!',
+      markDone: 'Done, rest', skip: 'Skip', workoutFinished: 'Workout complete!', finishBtn: '✓ Finish',
       newProgram: 'New program', programName: 'Program name:', renameProgram: 'New name:',
       deleteProgramConfirm: 'Delete this whole program?', cantDeleteLast: 'You need at least one program.',
-      set: 'Set',
+      set: 'Set', noDaysYet: 'This program has no days yet — add one from "My routine".',
     },
   };
 
@@ -94,6 +94,33 @@
   };
   const label = (map, key) => (map[key] ? map[key][state.lang] : key);
   const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+  let saveWarned = false;
+  function safeSave(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (err) {
+      console.error('No se pudo guardar en localStorage:', err);
+      if (!saveWarned) {
+        saveWarned = true;
+        showToast(UI[state.lang].saveError);
+      }
+      return false;
+    }
+  }
+  function showToast(msg) {
+    let t = $('#toast');
+    if (!t) {
+      t = document.createElement('div');
+      t.id = 'toast'; t.className = 'toast';
+      document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(showToast._tid);
+    showToast._tid = setTimeout(() => t.classList.remove('show'), 4000);
+  }
 
   /* ---------- Data model ----------
      state.programs = [{ id, name: {es,en}|string, days: [{id,name,exercises:[{id,series,reps,peso}]}] }]
@@ -363,8 +390,13 @@
   document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { closeModal(); closeRoutine(); } });
 
   function renderDayPicker(container, onPick) {
+    const days = activeProgram().days;
+    if (!days.length) {
+      container.innerHTML = `<p class="day-picker-label">${UI[state.lang].noDaysYet}</p>`;
+      return;
+    }
     container.innerHTML = `<p class="day-picker-label">${UI[state.lang].chooseDay}</p>` +
-      activeProgram().days.map(d => `<button type="button" class="day-chip" data-day="${d.id}">${esc(dayName(d))}</button>`).join('');
+      days.map(d => `<button type="button" class="day-chip" data-day="${d.id}">${esc(dayName(d))}</button>`).join('');
     container.querySelectorAll('.day-chip').forEach(btn => {
       btn.addEventListener('click', () => onPick(btn.dataset.day));
     });
@@ -651,6 +683,9 @@
     });
     stopRestTimer();
     $('#workoutPrev').disabled = workout.index === 0;
+    const isLast = workout.index === day.exercises.length - 1;
+    $('#workoutNext').textContent = isLast ? UI[state.lang].finishBtn : UI[state.lang].nextExercise;
+    $('#workoutNext').dataset.last = isLast ? '1' : '';
   }
 
   function saveWorkoutInputs() {
@@ -661,8 +696,9 @@
     saveRoutine();
   }
 
-  $('#workoutNext').addEventListener('click', () => {
+  $('#workoutNext').addEventListener('click', (ev) => {
     saveWorkoutInputs();
+    if (ev.currentTarget.dataset.last === '1') { finishWorkout(); return; }
     const ctx = currentWorkoutItem();
     if (ctx && ctx.day) { workout.index = Math.min(workout.index + 1, ctx.day.exercises.length - 1); }
     renderWorkoutExercise();
