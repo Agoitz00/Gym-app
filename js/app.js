@@ -17,6 +17,10 @@
       exportBtn: '⬇ Exportar', importBtn: '⬆ Importar', addDayBtn: '+ Añadir', addDayPlaceholder: 'Nuevo día (ej. Piernas)',
       importOk: 'Rutina importada.', importErr: 'Ese archivo no es una rutina válida.',
       removeDayConfirm: '¿Quitar este día y sus ejercicios?',
+      offlineToggle: '⬇ Descargar para usar sin conexión',
+      offlineHint: 'Elige qué equipo quieres tener disponible offline (así no descargas los 138\u00a0MB completos):',
+      offlineGoBtn: 'Descargar seleccionado', offlineGoing: 'Descargando…', offlineDone: '✓ Listo, disponible sin conexión',
+      offlineNone: 'Elige al menos un tipo de equipo.',
       series: 'Series', reps: 'Reps', peso: 'Peso',
       progressTitle: 'Tu progreso', progressEmpty: 'Aún no hay historial — regístralo desde Modo entrenamiento.',
       train: '▶ Entrenar', exit: 'Salir', prevExercise: '← Anterior', nextExercise: 'Siguiente →',
@@ -39,6 +43,10 @@
       exportBtn: '⬇ Export', importBtn: '⬆ Import', addDayBtn: '+ Add', addDayPlaceholder: 'New day (e.g. Legs)',
       importOk: 'Routine imported.', importErr: 'That file is not a valid routine.',
       removeDayConfirm: 'Remove this day and its exercises?',
+      offlineToggle: '⬇ Download for offline use',
+      offlineHint: 'Pick which equipment you want available offline (so you don\u2019t download the full 138\u00a0MB):',
+      offlineGoBtn: 'Download selected', offlineGoing: 'Downloading…', offlineDone: '✓ Done, available offline',
+      offlineNone: 'Pick at least one equipment type.',
       series: 'Sets', reps: 'Reps', peso: 'Weight',
       progressTitle: 'Your progress', progressEmpty: 'No history yet — log it from Workout mode.',
       train: '▶ Train', exit: 'Exit', prevExercise: '← Previous', nextExercise: 'Next →',
@@ -191,6 +199,7 @@
     state.activeProgramId = state.programs[0].id;
     buildEquipmentOptions();
     buildPlateRack();
+    buildOfflineChecks();
     applyFilters();
     updateRoutineBadge();
   }).catch(err => {
@@ -272,7 +281,7 @@
       <div class="card-media">
         <span class="card-chip" style="background:${PLATE_COLOR[e.body_part]}"></span>
         <img src="${e.image}" alt="" loading="lazy">
-        <img class="gif" data-src="${e.gif}" alt="" loading="lazy">
+        <video class="gif" data-src="${e.gif}" muted loop playsinline preload="none"></video>
         <span class="play-hint" aria-hidden="true">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M6 4l14 8-14 8V4z" fill="#edeae3"/></svg>
         </span>
@@ -283,7 +292,7 @@
       </div>`;
     const gifImg = card.querySelector('.gif');
     let loaded = false;
-    const loadGif = () => { if (!loaded) { gifImg.src = gifImg.dataset.src; loaded = true; } };
+    const loadGif = () => { if (!loaded) { gifImg.src = gifImg.dataset.src; gifImg.play().catch(() => {}); loaded = true; } };
     card.addEventListener('mouseenter', loadGif);
     card.addEventListener('focus', loadGif);
     card.addEventListener('click', () => openModal(e));
@@ -368,6 +377,7 @@
   function openModal(e) {
     currentExercise = e;
     $('#modalGif').src = e.gif;
+    $('#modalGif').play().catch(() => {});
     $('#modalChip').textContent = label(BODY_PART_LABEL, e.body_part);
     $('#modalChip').style.background = PLATE_COLOR[e.body_part];
     $('#modalTitle').textContent = e.name;
@@ -387,7 +397,12 @@
   function closeModal() { backdrop.hidden = true; currentExercise = null; }
   $('#modalClose').addEventListener('click', closeModal);
   backdrop.addEventListener('click', (ev) => { if (ev.target === backdrop) closeModal(); });
-  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { closeModal(); closeRoutine(); } });
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    closeModal(); closeRoutine();
+    document.querySelectorAll('.swap-pop').forEach(p => p.remove());
+    if (!$('#workoutScreen').hidden) exitWorkout();
+  });
 
   function renderDayPicker(container, onPick) {
     const days = activeProgram().days;
@@ -636,6 +651,54 @@
     }
   });
 
+  /* ---------- Offline selective download ---------- */
+  function buildOfflineChecks() {
+    const found = [...new Set(state.all.map(e => e.equipment))];
+    const priority = EQUIPMENT_PRIORITY.filter(v => found.includes(v));
+    const rest = found.filter(v => !EQUIPMENT_PRIORITY.includes(v)).sort();
+    const box = $('#offlineChecks');
+    box.innerHTML = [...priority, ...rest].map(v => `
+      <label class="offline-check">
+        <input type="checkbox" value="${v}" ${priority.includes(v) ? 'checked' : ''}>
+        ${label(EQUIPMENT_LABEL, v)}
+      </label>`).join('');
+  }
+
+  $('#offlineToggle').addEventListener('click', () => {
+    $('#offlinePanel').hidden = !$('#offlinePanel').hidden;
+  });
+
+  $('#offlineGoBtn').addEventListener('click', async () => {
+    const chosen = [...document.querySelectorAll('#offlineChecks input:checked')].map(c => c.value);
+    if (!chosen.length) { alert(UI[state.lang].offlineNone); return; }
+    const matched = state.all.filter(e => chosen.includes(e.equipment));
+    const urls = [];
+    matched.forEach(e => { urls.push(e.image); urls.push(e.gif); });
+
+    const btn = $('#offlineGoBtn');
+    btn.disabled = true; btn.textContent = UI[state.lang].offlineGoing;
+    $('#offlineProgress').hidden = false;
+    const fill = $('#offlineBarFill'), lbl = $('#offlineProgressLabel');
+    fill.style.width = '0%'; lbl.textContent = `0 / ${urls.length}`;
+
+    let done = 0;
+    const worker = (url) => fetch(url).then(() => {
+      done++;
+      const pct = Math.round((done / urls.length) * 100);
+      fill.style.width = pct + '%';
+      lbl.textContent = `${done} / ${urls.length}`;
+    });
+    const limit = 6;
+    let i = 0;
+    async function pump() {
+      while (i < urls.length) { const u = urls[i++]; await worker(u).catch(() => {}); }
+    }
+    await Promise.all(Array.from({ length: limit }, pump));
+
+    btn.disabled = false; btn.textContent = UI[state.lang].offlineDone;
+    setTimeout(() => { btn.textContent = UI[state.lang].offlineGoBtn; }, 2500);
+  });
+
   /* ---------- Workout mode ---------- */
   const workout = { dayId: null, index: 0, setsDone: [], restInterval: null };
 
@@ -645,14 +708,26 @@
     $('#workoutScreen').hidden = false;
     document.body.style.overflow = 'hidden';
     renderWorkoutExercise();
+    $('#workoutExit').focus();
   }
   function exitWorkout() {
     stopRestTimer();
     $('#workoutScreen').hidden = true;
     document.body.style.overflow = '';
     updateRoutineBadge();
+    $('#routineBtn').focus();
   }
   $('#workoutExit').addEventListener('click', exitWorkout);
+
+  $('#workoutScreen').addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Tab') return;
+    const focusable = [...$('#workoutScreen').querySelectorAll('button, input, [tabindex]:not([tabindex="-1"])')]
+      .filter(el => el.offsetParent !== null && !el.disabled);
+    if (!focusable.length) return;
+    const first = focusable[0], last = focusable[focusable.length - 1];
+    if (ev.shiftKey && document.activeElement === first) { ev.preventDefault(); last.focus(); }
+    else if (!ev.shiftKey && document.activeElement === last) { ev.preventDefault(); first.focus(); }
+  });
 
   function currentWorkoutItem() {
     const day = findDay(workout.dayId);
@@ -670,6 +745,7 @@
     $('#workoutProgress').textContent = `${workout.index + 1} / ${day.exercises.length}`;
     $('#workoutDayName').textContent = dayName(day);
     $('#workoutGif').src = ex.gif;
+    $('#workoutGif').play().catch(() => {});
     $('#workoutExName').textContent = ex.name;
     $('#workoutTarget').textContent = `${label(BODY_PART_LABEL, ex.body_part)} · ${label(TARGET_LABEL, ex.target)}`;
     $('#workoutReps').value = item.reps || '';

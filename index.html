@@ -19,7 +19,7 @@
 <header class="topbar">
   <div class="topbar-inner">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">45</span>
+      <span class="brand-mark" aria-hidden="true">AG</span>
       <div class="brand-text">
         <h1 class="brand-title">Agoitz Gym</h1>
         <p class="brand-sub" data-i18n="tagline">Biblioteca de ejercicios</p>
@@ -69,7 +69,7 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <button class="modal-close" id="modalClose" type="button" aria-label="Cerrar">✕</button>
     <div class="modal-media">
-      <img id="modalGif" alt="">
+      <video id="modalGif" autoplay loop muted playsinline></video>
     </div>
     <div class="modal-body">
       <span class="modal-chip" id="modalChip"></span>
@@ -128,6 +128,19 @@
       <input type="text" id="addDayInput" data-i18n-placeholder="addDayPlaceholder" placeholder="Nuevo día (ej. Piernas)">
       <button type="submit" data-i18n="addDayBtn">+ Añadir</button>
     </form>
+
+    <div class="offline-section">
+      <button type="button" class="offline-toggle" id="offlineToggle" data-i18n="offlineToggle">⬇ Descargar para usar sin conexión</button>
+      <div class="offline-panel" id="offlinePanel" hidden>
+        <p class="offline-hint" data-i18n="offlineHint">Elige qué equipo quieres tener disponible offline (así no descargas los 138&nbsp;MB completos):</p>
+        <div class="offline-checks" id="offlineChecks"></div>
+        <button type="button" class="offline-go" id="offlineGoBtn" data-i18n="offlineGoBtn">Descargar seleccionado</button>
+        <div class="offline-progress" id="offlineProgress" hidden>
+          <div class="offline-bar"><div class="offline-bar-fill" id="offlineBarFill"></div></div>
+          <span id="offlineProgressLabel"></span>
+        </div>
+      </div>
+    </div>
   </aside>
 </div>
 
@@ -141,7 +154,7 @@
 
   <div class="workout-body">
     <div class="workout-media">
-      <img id="workoutGif" alt="">
+      <video id="workoutGif" autoplay loop muted playsinline></video>
     </div>
     <h2 id="workoutExName"></h2>
     <p class="workout-target" id="workoutTarget"></p>
