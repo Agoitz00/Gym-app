@@ -18,6 +18,12 @@
       importOk: 'Rutina importada.', importErr: 'Ese archivo no es una rutina válida.',
       removeDayConfirm: '¿Quitar este día y sus ejercicios?',
       series: 'Series', reps: 'Reps', peso: 'Peso',
+      progressTitle: 'Tu progreso', progressEmpty: 'Aún no hay historial — regístralo desde Modo entrenamiento.',
+      train: '▶ Entrenar', exit: 'Salir', prevExercise: '← Anterior', nextExercise: 'Siguiente →',
+      markDone: 'Hecho, descansar', skip: 'Saltar', workoutFinished: '¡Entrenamiento completado!',
+      newProgram: 'Nuevo programa', programName: 'Nombre del programa:', renameProgram: 'Nuevo nombre:',
+      deleteProgramConfirm: '¿Borrar este programa entero?', cantDeleteLast: 'Necesitas al menos un programa.',
+      set: 'Serie',
     },
     en: {
       tagline: 'Exercise library', myRoutine: 'My routine',
@@ -34,6 +40,12 @@
       importOk: 'Routine imported.', importErr: 'That file is not a valid routine.',
       removeDayConfirm: 'Remove this day and its exercises?',
       series: 'Sets', reps: 'Reps', peso: 'Weight',
+      progressTitle: 'Your progress', progressEmpty: 'No history yet — log it from Workout mode.',
+      train: '▶ Train', exit: 'Exit', prevExercise: '← Previous', nextExercise: 'Next →',
+      markDone: 'Done, rest', skip: 'Skip', workoutFinished: 'Workout complete!',
+      newProgram: 'New program', programName: 'Program name:', renameProgram: 'New name:',
+      deleteProgramConfirm: 'Delete this whole program?', cantDeleteLast: 'You need at least one program.',
+      set: 'Set',
     },
   };
 
@@ -81,21 +93,38 @@
     'upper back': { es: 'Espalda alta', en: 'Upper back' },
   };
   const label = (map, key) => (map[key] ? map[key][state.lang] : key);
-
-  /* ---------- Routine data model ----------
-     state.routine = [{ id, name: {es,en}|string, exercises: [{id,series,reps,peso}] }, ...]  */
-  function dayName(day) { return typeof day.name === 'string' ? day.name : day.name[state.lang]; }
   const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  function isValidRoutine(data) {
-    return Array.isArray(data) && data.every(d => d && typeof d.id !== 'undefined' && d.name && Array.isArray(d.exercises)
+
+  /* ---------- Data model ----------
+     state.programs = [{ id, name: {es,en}|string, days: [{id,name,exercises:[{id,series,reps,peso}]}] }]
+     state.activeProgramId
+     state.history = { [exerciseId]: [{date:'YYYY-MM-DD', peso, reps}] }               */
+  function dayName(day) { return typeof day.name === 'string' ? day.name : day.name[state.lang]; }
+  function isValidDays(days) {
+    return Array.isArray(days) && days.every(d => d && typeof d.id !== 'undefined' && d.name && Array.isArray(d.exercises)
       && d.exercises.every(x => x && typeof x.id !== 'undefined'));
   }
-  function loadStoredRoutine() {
+  function isValidPrograms(data) {
+    return Array.isArray(data) && data.every(p => p && typeof p.id !== 'undefined' && p.name && isValidDays(p.days));
+  }
+  function loadStoredPrograms() {
     try {
-      const raw = JSON.parse(localStorage.getItem('agoitzgym_routine') || 'null');
-      if (isValidRoutine(raw)) return raw;
+      const raw = JSON.parse(localStorage.getItem('agoitzgym_programs') || 'null');
+      if (isValidPrograms(raw)) return raw;
+    } catch {}
+    try {
+      // migracion desde el formato antiguo de una sola rutina (sin programas)
+      const old = JSON.parse(localStorage.getItem('agoitzgym_routine') || 'null');
+      if (isValidDays(old)) return [{ id: 'default', name: { es: 'Mi rutina', en: 'My routine' }, days: old }];
     } catch {}
     return null;
+  }
+  function loadHistory() {
+    try {
+      const raw = JSON.parse(localStorage.getItem('agoitzgym_history') || 'null');
+      if (raw && typeof raw === 'object') return raw;
+    } catch {}
+    return {};
   }
 
   /* ---------- State ---------- */
@@ -104,7 +133,8 @@
     all: [], filtered: [],
     activeParts: new Set(), activeEquipment: '', query: '',
     shown: 0, pageSize: 30,
-    routine: [],
+    programs: [], activeProgramId: null,
+    history: loadHistory(),
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -118,13 +148,20 @@
     </div>`).join('');
 
   /* ---------- Load data ---------- */
-  const stored = loadStoredRoutine();
+  const storedPrograms = loadStoredPrograms();
   Promise.all([
     fetch('data.json').then(r => r.json()),
-    stored ? Promise.resolve(null) : fetch('default-routine.json').then(r => r.ok ? r.json() : null).catch(() => null),
-  ]).then(([data, defaultR]) => {
+    storedPrograms ? Promise.resolve(null) : fetch('default-routine.json').then(r => r.ok ? r.json() : null).catch(() => null),
+  ]).then(([data, defaultDays]) => {
     state.all = data;
-    state.routine = stored || (isValidRoutine(defaultR) ? defaultR : []);
+    if (storedPrograms) {
+      state.programs = storedPrograms;
+    } else if (isValidDays(defaultDays)) {
+      state.programs = [{ id: 'default', name: { es: 'Mi rutina', en: 'My routine' }, days: defaultDays }];
+    } else {
+      state.programs = [{ id: 'default', name: { es: 'Mi rutina', en: 'My routine' }, days: [] }];
+    }
+    state.activeProgramId = state.programs[0].id;
     buildEquipmentOptions();
     buildPlateRack();
     applyFilters();
@@ -133,6 +170,10 @@
     grid.innerHTML = `<p style="color:var(--muted)">No se pudo cargar el catálogo de ejercicios.</p>`;
     console.error(err);
   });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
 
   function buildEquipmentOptions() {
     const found = [...new Set(state.all.map(e => e.equipment))];
@@ -236,7 +277,7 @@
   $('#resetFilters').addEventListener('click', clearAllFilters);
   $('#clearAllChip').addEventListener('click', clearAllFilters);
 
-  /* ---------- Alternatives (same target, different equipment) ---------- */
+  /* ---------- Alternatives ---------- */
   function getAlternatives(exercise, limit = 4) {
     return state.all
       .filter(e => e.id !== exercise.id && e.target === exercise.target && e.equipment !== exercise.equipment)
@@ -251,6 +292,46 @@
       <span class="mini-eq">${label(EQUIPMENT_LABEL, e.equipment)}</span>`;
     el.addEventListener('click', () => onClick(e));
     return el;
+  }
+
+  /* ---------- Progress history ---------- */
+  function parseNum(str) {
+    if (!str) return null;
+    const m = String(str).replace(',', '.').match(/[\d.]+/);
+    return m ? parseFloat(m[0]) : null;
+  }
+  function logHistory(exerciseId, entry) {
+    if (!state.history[exerciseId]) state.history[exerciseId] = [];
+    const today = new Date().toISOString().slice(0, 10);
+    const list = state.history[exerciseId].filter(h => h.date !== today);
+    list.push({ date: today, peso: entry.peso, reps: entry.reps });
+    list.sort((a, b) => a.date.localeCompare(b.date));
+    state.history[exerciseId] = list;
+    localStorage.setItem('agoitzgym_history', JSON.stringify(state.history));
+  }
+
+  function renderProgressChart(exerciseId) {
+    const section = $('#progressSection');
+    const entries = (state.history[exerciseId] || []).filter(h => parseNum(h.peso) !== null);
+    if (!entries.length) {
+      section.hidden = true;
+      return;
+    }
+    section.hidden = false;
+    const pts = entries.map(h => ({ date: h.date, v: parseNum(h.peso) }));
+    const W = 320, H = 100, pad = 18;
+    const min = Math.min(...pts.map(p => p.v)), max = Math.max(...pts.map(p => p.v));
+    const span = max - min || 1;
+    const x = (i) => pad + (i / Math.max(pts.length - 1, 1)) * (W - pad * 2);
+    const y = (v) => H - pad - ((v - min) / span) * (H - pad * 2);
+    const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+    const dots = pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.2" fill="var(--accent)"/>`).join('');
+    $('#progressChart').innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" class="progress-svg">
+        <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        ${dots}
+      </svg>
+      <div class="progress-labels"><span>${pts[0].date}</span><span>${esc(entries[entries.length-1].peso)}</span><span>${pts[pts.length-1].date}</span></div>`;
   }
 
   /* ---------- Modal ---------- */
@@ -273,6 +354,7 @@
     $('#modalAddBtn').textContent = UI[state.lang].addToRoutine;
     $('#altList').hidden = true;
     $('#altToggle').textContent = UI[state.lang].altToggle;
+    renderProgressChart(e.id);
     backdrop.hidden = false;
   }
   function closeModal() { backdrop.hidden = true; currentExercise = null; }
@@ -282,7 +364,7 @@
 
   function renderDayPicker(container, onPick) {
     container.innerHTML = `<p class="day-picker-label">${UI[state.lang].chooseDay}</p>` +
-      state.routine.map(d => `<button type="button" class="day-chip" data-day="${d.id}">${esc(dayName(d))}</button>`).join('');
+      activeProgram().days.map(d => `<button type="button" class="day-chip" data-day="${d.id}">${esc(dayName(d))}</button>`).join('');
     container.querySelectorAll('.day-chip').forEach(btn => {
       btn.addEventListener('click', () => onPick(btn.dataset.day));
     });
@@ -321,9 +403,47 @@
     list.hidden = false;
   });
 
-  /* ---------- Routine ---------- */
-  function saveRoutine() { localStorage.setItem('agoitzgym_routine', JSON.stringify(state.routine)); }
-  function findDay(dayId) { return state.routine.find(d => d.id === dayId); }
+  /* ---------- Programs ---------- */
+  function activeProgram() { return state.programs.find(p => p.id === state.activeProgramId) || state.programs[0]; }
+  function saveProgramsState() { localStorage.setItem('agoitzgym_programs', JSON.stringify(state.programs)); }
+
+  function renderProgramSelect() {
+    const sel = $('#programSelect');
+    sel.innerHTML = state.programs.map(p => `<option value="${p.id}">${esc(dayName(p))}</option>`).join('');
+    sel.value = state.activeProgramId;
+  }
+  $('#programSelect').addEventListener('change', (ev) => {
+    state.activeProgramId = ev.target.value;
+    renderRoutineDays();
+  });
+  $('#programNewBtn').addEventListener('click', () => {
+    const name = prompt(UI[state.lang].programName);
+    if (!name || !name.trim()) return;
+    const p = { id: 'prog_' + Date.now(), name: name.trim(), days: [] };
+    state.programs.push(p);
+    state.activeProgramId = p.id;
+    saveProgramsState();
+    renderProgramSelect(); renderRoutineDays(); updateRoutineBadge();
+  });
+  $('#programRenameBtn').addEventListener('click', () => {
+    const p = activeProgram();
+    const name = prompt(UI[state.lang].renameProgram, dayName(p));
+    if (!name || !name.trim()) return;
+    p.name = name.trim();
+    saveProgramsState(); renderProgramSelect();
+  });
+  $('#programDeleteBtn').addEventListener('click', () => {
+    if (state.programs.length <= 1) { alert(UI[state.lang].cantDeleteLast); return; }
+    if (!confirm(UI[state.lang].deleteProgramConfirm)) return;
+    state.programs = state.programs.filter(p => p.id !== state.activeProgramId);
+    state.activeProgramId = state.programs[0].id;
+    saveProgramsState();
+    renderProgramSelect(); renderRoutineDays(); updateRoutineBadge();
+  });
+
+  /* ---------- Routine (days within active program) ---------- */
+  function saveRoutine() { saveProgramsState(); }
+  function findDay(dayId) { return activeProgram().days.find(d => d.id === dayId); }
 
   function addToRoutine(dayId, id) {
     const day = findDay(dayId); if (!day) return;
@@ -354,28 +474,35 @@
   }
   function removeDay(dayId) {
     if (!confirm(UI[state.lang].removeDayConfirm)) return;
-    state.routine = state.routine.filter(d => d.id !== dayId);
+    const p = activeProgram();
+    p.days = p.days.filter(d => d.id !== dayId);
     saveRoutine(); updateRoutineBadge(); renderRoutineDays();
   }
   function updateRoutineBadge() {
-    const total = state.routine.reduce((n, d) => n + d.exercises.length, 0);
+    const total = activeProgram().days.reduce((n, d) => n + d.exercises.length, 0);
     $('#routineCount').textContent = total;
   }
 
   function statField(dayId, exId, field, value) {
     return `<label class="stat-field"><span>${UI[state.lang][field]}</span>
-      <input type="text" class="stat-input" data-day="${dayId}" data-ex="${exId}" data-field="${field}" value="${value.replace(/"/g,'&quot;')}"></label>`;
+      <input type="text" class="stat-input" data-day="${dayId}" data-ex="${exId}" data-field="${field}" value="${esc(value)}"></label>`;
   }
 
   function renderRoutineDays() {
+    renderProgramSelect();
     const container = $('#routineDays');
-    $('#routineEmpty').hidden = state.routine.length > 0;
+    const days = activeProgram().days;
+    $('#routineEmpty').hidden = days.length > 0;
     container.innerHTML = '';
-    state.routine.forEach(d => {
+    days.forEach(d => {
       const section = document.createElement('div');
       section.className = 'day-section';
-      section.innerHTML = `<h3 class="day-heading">${esc(dayName(d))} <span class="day-count">${d.exercises.length}</span><button type="button" class="day-remove" aria-label="Quitar día">✕</button></h3>`;
+      section.innerHTML = `<h3 class="day-heading">${esc(dayName(d))} <span class="day-count">${d.exercises.length}</span>
+          ${d.exercises.length ? `<button type="button" class="train-btn">${UI[state.lang].train}</button>` : ''}
+          <button type="button" class="day-remove" aria-label="Quitar día">✕</button></h3>`;
       section.querySelector('.day-remove').addEventListener('click', () => removeDay(d.id));
+      const trainBtn = section.querySelector('.train-btn');
+      if (trainBtn) trainBtn.addEventListener('click', () => startWorkout(d.id));
       if (!d.exercises.length) {
         const p = document.createElement('p');
         p.className = 'day-empty'; p.textContent = UI[state.lang].dayEmpty;
@@ -421,7 +548,7 @@
     if (!alts.length) {
       pop.innerHTML = `<p class="alt-empty">${UI[state.lang].altEmpty}</p>`;
     } else {
-      pop.innerHTML = `<p class="swap-pop-title">${UI[state.lang].swapTitle} ${exercise.name}</p>`;
+      pop.innerHTML = `<p class="swap-pop-title">${UI[state.lang].swapTitle} ${esc(exercise.name)}</p>`;
       const row = document.createElement('div'); row.className = 'mini-row';
       alts.forEach(a => row.appendChild(miniCard(a, (picked) => {
         swapInRoutine(dayId, exercise.id, picked.id);
@@ -446,7 +573,7 @@
     const input = $('#addDayInput');
     const name = input.value.trim();
     if (!name) return;
-    state.routine.push({ id: 'custom_' + Date.now(), name, exercises: [] });
+    activeProgram().days.push({ id: 'custom_' + Date.now(), name, exercises: [] });
     input.value = '';
     saveRoutine();
     renderRoutineDays();
@@ -454,10 +581,10 @@
 
   /* ---------- Export / Import ---------- */
   $('#exportBtn').addEventListener('click', () => {
-    const blob = new Blob([JSON.stringify(state.routine, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(state.programs, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = 'mi-rutina-agoitz-gym.json'; a.click();
+    a.href = url; a.download = 'mis-programas-agoitz-gym.json'; a.click();
     URL.revokeObjectURL(url);
   });
   $('#importBtn').addEventListener('click', () => $('#importFile').click());
@@ -466,14 +593,127 @@
     if (!file) return;
     try {
       const data = JSON.parse(await file.text());
-      if (!isValidRoutine(data)) throw new Error('bad shape');
-      state.routine = data;
-      saveRoutine(); updateRoutineBadge(); renderRoutineDays();
+      const programs = isValidPrograms(data) ? data : (isValidDays(data) ? [{ id: 'default', name: { es: 'Mi rutina', en: 'My routine' }, days: data }] : null);
+      if (!programs) throw new Error('bad shape');
+      state.programs = programs;
+      state.activeProgramId = programs[0].id;
+      saveProgramsState(); updateRoutineBadge(); renderRoutineDays();
       alert(UI[state.lang].importOk);
     } catch {
       alert(UI[state.lang].importErr);
     }
   });
+
+  /* ---------- Workout mode ---------- */
+  const workout = { dayId: null, index: 0, setsDone: [], restInterval: null };
+
+  function startWorkout(dayId) {
+    workout.dayId = dayId; workout.index = 0;
+    closeRoutine();
+    $('#workoutScreen').hidden = false;
+    document.body.style.overflow = 'hidden';
+    renderWorkoutExercise();
+  }
+  function exitWorkout() {
+    stopRestTimer();
+    $('#workoutScreen').hidden = true;
+    document.body.style.overflow = '';
+    updateRoutineBadge();
+  }
+  $('#workoutExit').addEventListener('click', exitWorkout);
+
+  function currentWorkoutItem() {
+    const day = findDay(workout.dayId);
+    if (!day) return null;
+    return { day, item: day.exercises[workout.index] };
+  }
+
+  function renderWorkoutExercise() {
+    const ctx = currentWorkoutItem();
+    if (!ctx || !ctx.item) { finishWorkout(); return; }
+    const { day, item } = ctx;
+    const ex = state.all.find(e => e.id === item.id);
+    if (!ex) { workout.index++; renderWorkoutExercise(); return; }
+
+    $('#workoutProgress').textContent = `${workout.index + 1} / ${day.exercises.length}`;
+    $('#workoutDayName').textContent = dayName(day);
+    $('#workoutGif').src = ex.gif;
+    $('#workoutExName').textContent = ex.name;
+    $('#workoutTarget').textContent = `${label(BODY_PART_LABEL, ex.body_part)} · ${label(TARGET_LABEL, ex.target)}`;
+    $('#workoutReps').value = item.reps || '';
+    $('#workoutPeso').value = item.peso || '';
+
+    const setCount = Math.max(1, Math.min(12, parseInt(parseNum(item.series)) || 1));
+    $('#workoutSets').innerHTML = Array.from({ length: setCount }).map((_, i) =>
+      `<button type="button" class="set-dot" data-set="${i}">${i + 1}</button>`).join('');
+    $('#workoutSets').querySelectorAll('.set-dot').forEach(btn => {
+      btn.addEventListener('click', () => btn.classList.toggle('done'));
+    });
+    stopRestTimer();
+    $('#workoutPrev').disabled = workout.index === 0;
+  }
+
+  function saveWorkoutInputs() {
+    const ctx = currentWorkoutItem();
+    if (!ctx || !ctx.item) return;
+    ctx.item.reps = $('#workoutReps').value;
+    ctx.item.peso = $('#workoutPeso').value;
+    saveRoutine();
+  }
+
+  $('#workoutNext').addEventListener('click', () => {
+    saveWorkoutInputs();
+    const ctx = currentWorkoutItem();
+    if (ctx && ctx.day) { workout.index = Math.min(workout.index + 1, ctx.day.exercises.length - 1); }
+    renderWorkoutExercise();
+  });
+  $('#workoutPrev').addEventListener('click', () => {
+    saveWorkoutInputs();
+    workout.index = Math.max(workout.index - 1, 0);
+    renderWorkoutExercise();
+  });
+  $('#workoutDone').addEventListener('click', () => {
+    saveWorkoutInputs();
+    const ctx = currentWorkoutItem();
+    if (ctx && ctx.item) logHistory(ctx.item.id, { peso: ctx.item.peso, reps: ctx.item.reps });
+    startRestTimer(90);
+  });
+
+  function startRestTimer(seconds) {
+    let remaining = seconds;
+    const ring = $('#restRingProgress');
+    const circumference = 2 * Math.PI * 45;
+    ring.style.strokeDasharray = circumference;
+    $('#restTimer').hidden = false;
+    const tick = () => {
+      $('#restTimerLabel').textContent = remaining;
+      ring.style.strokeDashoffset = circumference * (1 - remaining / seconds);
+      if (remaining <= 0) { stopRestTimer(); return; }
+      remaining--;
+    };
+    tick();
+    workout.restInterval = setInterval(tick, 1000);
+  }
+  function stopRestTimer() {
+    if (workout.restInterval) clearInterval(workout.restInterval);
+    workout.restInterval = null;
+    $('#restTimer').hidden = true;
+  }
+  $('#restSkip').addEventListener('click', stopRestTimer);
+  document.querySelectorAll('.rest-timer-btns [data-adjust]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const delta = parseInt(btn.dataset.adjust, 10);
+      const lbl = $('#restTimerLabel');
+      const next = Math.max(0, parseInt(lbl.textContent, 10) + delta);
+      stopRestTimer();
+      startRestTimer(next || 1);
+    });
+  });
+
+  function finishWorkout() {
+    alert(UI[state.lang].workoutFinished);
+    exitWorkout();
+  }
 
   /* ---------- Language ---------- */
   function setLanguage(lang) {

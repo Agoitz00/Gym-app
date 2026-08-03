@@ -9,6 +9,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Big+Shoulders+Stencil+Display:wght@700;800&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#17181a">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
 </head>
 <body>
 
@@ -91,6 +95,11 @@
         </button>
         <div class="alt-list" id="altList" hidden></div>
       </div>
+
+      <div class="progress-section" id="progressSection" hidden>
+        <h3 data-i18n="progressTitle">Tu progreso</h3>
+        <div id="progressChart"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -101,6 +110,12 @@
     <div class="routine-head">
       <h2 id="routineTitle" data-i18n="myRoutine">Mi rutina</h2>
       <button class="modal-close" id="routineClose" type="button" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="program-row">
+      <select id="programSelect" aria-label="Programa"></select>
+      <button type="button" id="programNewBtn" class="io-btn small" title="Nuevo programa">+</button>
+      <button type="button" id="programRenameBtn" class="io-btn small" title="Renombrar">✎</button>
+      <button type="button" id="programDeleteBtn" class="io-btn small" title="Borrar programa">🗑</button>
     </div>
     <div class="routine-io">
       <button type="button" id="exportBtn" class="io-btn" data-i18n="exportBtn">⬇ Exportar</button>
@@ -114,6 +129,48 @@
       <button type="submit" data-i18n="addDayBtn">+ Añadir</button>
     </form>
   </aside>
+</div>
+
+<!-- Modo entrenamiento -->
+<div class="workout-screen" id="workoutScreen" hidden>
+  <div class="workout-top">
+    <button type="button" id="workoutExit" class="modal-close" aria-label="Salir">✕</button>
+    <span class="workout-progress" id="workoutProgress"></span>
+    <span class="workout-day-name" id="workoutDayName"></span>
+  </div>
+
+  <div class="workout-body">
+    <div class="workout-media">
+      <img id="workoutGif" alt="">
+    </div>
+    <h2 id="workoutExName"></h2>
+    <p class="workout-target" id="workoutTarget"></p>
+
+    <div class="workout-sets" id="workoutSets"></div>
+
+    <div class="workout-inputs">
+      <label><span data-i18n="reps">Reps</span><input type="text" id="workoutReps"></label>
+      <label><span data-i18n="peso">Peso</span><input type="text" id="workoutPeso"></label>
+    </div>
+
+    <div class="rest-timer" id="restTimer" hidden>
+      <div class="rest-ring-wrap">
+        <svg viewBox="0 0 100 100" class="rest-ring"><circle cx="50" cy="50" r="45"/><circle cx="50" cy="50" r="45" id="restRingProgress"/></svg>
+        <span id="restTimerLabel">90</span>
+      </div>
+      <div class="rest-timer-btns">
+        <button type="button" data-adjust="-15">-15s</button>
+        <button type="button" id="restSkip" data-i18n="skip">Saltar</button>
+        <button type="button" data-adjust="15">+15s</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="workout-nav">
+    <button type="button" id="workoutPrev" data-i18n="prevExercise">← Anterior</button>
+    <button type="button" id="workoutDone" class="workout-done-btn" data-i18n="markDone">Hecho, descansar</button>
+    <button type="button" id="workoutNext" data-i18n="nextExercise">Siguiente →</button>
+  </div>
 </div>
 
 <footer class="site-footer">
