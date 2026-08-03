@@ -1,0 +1,182 @@
+[
+  {
+    "id": "dia1_push",
+    "name": {
+      "es": "Día 1 – Pecho + Hombro + Tríceps (Push)",
+      "en": "Day 1 – Chest + Shoulder + Triceps (Push)"
+    },
+    "exercises": [
+      {
+        "id": "1299",
+        "series": "4",
+        "reps": "8-12",
+        "peso": "17 kg por lado"
+      },
+      {
+        "id": "0289",
+        "series": "4",
+        "reps": "8-12",
+        "peso": "20 kg"
+      },
+      {
+        "id": "0596",
+        "series": "4",
+        "reps": "10-15",
+        "peso": "55 kg"
+      },
+      {
+        "id": "0178",
+        "series": "4",
+        "reps": "12-15",
+        "peso": "5 kg"
+      },
+      {
+        "id": "0602",
+        "series": "4",
+        "reps": "12-15",
+        "peso": "38 kg"
+      },
+      {
+        "id": "0241",
+        "series": "4",
+        "reps": "10-15",
+        "peso": "5 kg"
+      }
+    ]
+  },
+  {
+    "id": "dia2_pull",
+    "name": {
+      "es": "Día 2 – Espalda + Bíceps (Pull)",
+      "en": "Day 2 – Back + Biceps (Pull)"
+    },
+    "exercises": [
+      {
+        "id": "0197",
+        "series": "4",
+        "reps": "8-12",
+        "peso": "50 kg"
+      },
+      {
+        "id": "1313",
+        "series": "4",
+        "reps": "8-12",
+        "peso": "25 kg"
+      },
+      {
+        "id": "0606",
+        "series": "4",
+        "reps": "8-12",
+        "peso": "20 kg"
+      },
+      {
+        "id": "0604",
+        "series": "4",
+        "reps": "10-15",
+        "peso": "30 kg"
+      },
+      {
+        "id": "0313",
+        "series": "4",
+        "reps": "8-12",
+        "peso": "12 kg"
+      },
+      {
+        "id": "0868",
+        "series": "4",
+        "reps": "10-15",
+        "peso": "7,5 kg"
+      }
+    ]
+  },
+  {
+    "id": "dia3_pierna",
+    "name": {
+      "es": "Día 3 – Pierna",
+      "en": "Day 3 – Legs"
+    },
+    "exercises": [
+      {
+        "id": "0739",
+        "series": "4",
+        "reps": "10-12",
+        "peso": "80 kg"
+      },
+      {
+        "id": "1409",
+        "series": "4",
+        "reps": "10-12",
+        "peso": "20 kg"
+      },
+      {
+        "id": "0599",
+        "series": "4",
+        "reps": "10-15",
+        "peso": "35 kg"
+      },
+      {
+        "id": "0585",
+        "series": "4",
+        "reps": "10-15",
+        "peso": "40 kg"
+      },
+      {
+        "id": "0598",
+        "series": "4",
+        "reps": "12-15",
+        "peso": "15 kg"
+      },
+      {
+        "id": "0597",
+        "series": "4",
+        "reps": "12-15",
+        "peso": "35 kg"
+      },
+      {
+        "id": "0594",
+        "series": "4",
+        "reps": "12-20",
+        "peso": "35 kg"
+      }
+    ]
+  },
+  {
+    "id": "dia4_torso",
+    "name": {
+      "es": "Día 4 – Torso (extra)",
+      "en": "Day 4 – Full torso (extra)"
+    },
+    "exercises": [
+      {
+        "id": "2616",
+        "series": "4",
+        "reps": "8-12",
+        "peso": ""
+      },
+      {
+        "id": "0861",
+        "series": "4",
+        "reps": "8-12",
+        "peso": ""
+      },
+      {
+        "id": "0577",
+        "series": "4",
+        "reps": "8-12",
+        "peso": ""
+      },
+      {
+        "id": "0603",
+        "series": "4",
+        "reps": "10-12",
+        "peso": ""
+      },
+      {
+        "id": "0595",
+        "series": "3-4",
+        "reps": "12-20",
+        "peso": ""
+      }
+    ]
+  }
+]

@@ -17,6 +17,7 @@
       exportBtn: '⬇ Exportar', importBtn: '⬆ Importar', addDayBtn: '+ Añadir', addDayPlaceholder: 'Nuevo día (ej. Piernas)',
       importOk: 'Rutina importada.', importErr: 'Ese archivo no es una rutina válida.',
       removeDayConfirm: '¿Quitar este día y sus ejercicios?',
+      series: 'Series', reps: 'Reps', peso: 'Peso',
     },
     en: {
       tagline: 'Exercise library', myRoutine: 'My routine',
@@ -32,6 +33,7 @@
       exportBtn: '⬇ Export', importBtn: '⬆ Import', addDayBtn: '+ Add', addDayPlaceholder: 'New day (e.g. Legs)',
       importOk: 'Routine imported.', importErr: 'That file is not a valid routine.',
       removeDayConfirm: 'Remove this day and its exercises?',
+      series: 'Sets', reps: 'Reps', peso: 'Weight',
     },
   };
 
@@ -81,28 +83,18 @@
   const label = (map, key) => (map[key] ? map[key][state.lang] : key);
 
   /* ---------- Routine data model ----------
-     state.routine = [{ id, name: {es,en}|string, exercises: [ids] }, ...]  */
-  function defaultRoutine() {
-    return [
-      { id: 'pecho', name: { es: 'Pecho', en: 'Chest' }, exercises: [] },
-      { id: 'espalda', name: { es: 'Espalda', en: 'Back' }, exercises: [] },
-      { id: 'piernas', name: { es: 'Piernas', en: 'Legs' }, exercises: [] },
-      { id: 'hombros', name: { es: 'Hombros', en: 'Shoulders' }, exercises: [] },
-      { id: 'brazos', name: { es: 'Brazos', en: 'Arms' }, exercises: [] },
-      { id: 'abdomen', name: { es: 'Abdomen', en: 'Abs' }, exercises: [] },
-      { id: 'cardio', name: { es: 'Cardio', en: 'Cardio' }, exercises: [] },
-    ];
-  }
+     state.routine = [{ id, name: {es,en}|string, exercises: [{id,series,reps,peso}] }, ...]  */
   function dayName(day) { return typeof day.name === 'string' ? day.name : day.name[state.lang]; }
   function isValidRoutine(data) {
-    return Array.isArray(data) && data.every(d => d && typeof d.id !== 'undefined' && d.name && Array.isArray(d.exercises));
+    return Array.isArray(data) && data.every(d => d && typeof d.id !== 'undefined' && d.name && Array.isArray(d.exercises)
+      && d.exercises.every(x => x && typeof x.id !== 'undefined'));
   }
-  function loadRoutine() {
+  function loadStoredRoutine() {
     try {
       const raw = JSON.parse(localStorage.getItem('agoitzgym_routine') || 'null');
       if (isValidRoutine(raw)) return raw;
     } catch {}
-    return defaultRoutine();
+    return null;
   }
 
   /* ---------- State ---------- */
@@ -111,7 +103,7 @@
     all: [], filtered: [],
     activeParts: new Set(), activeEquipment: '', query: '',
     shown: 0, pageSize: 30,
-    routine: loadRoutine(),
+    routine: [],
   };
 
   const $ = (sel) => document.querySelector(sel);
@@ -125,8 +117,13 @@
     </div>`).join('');
 
   /* ---------- Load data ---------- */
-  fetch('data.json').then(r => r.json()).then(data => {
+  const stored = loadStoredRoutine();
+  Promise.all([
+    fetch('data.json').then(r => r.json()),
+    stored ? Promise.resolve(null) : fetch('default-routine.json').then(r => r.ok ? r.json() : null).catch(() => null),
+  ]).then(([data, defaultR]) => {
     state.all = data;
+    state.routine = stored || (isValidRoutine(defaultR) ? defaultR : []);
     buildEquipmentOptions();
     buildPlateRack();
     applyFilters();
@@ -329,24 +326,30 @@
 
   function addToRoutine(dayId, id) {
     const day = findDay(dayId); if (!day) return;
-    if (!day.exercises.includes(id)) day.exercises.push(id);
+    if (!day.exercises.some(x => x.id === id)) day.exercises.push({ id, series: '4', reps: '8-12', peso: '' });
     saveRoutine();
     updateRoutineBadge();
     if (!$('#routineBackdrop').hidden) renderRoutineDays();
   }
   function removeFromRoutine(dayId, id) {
     const day = findDay(dayId); if (!day) return;
-    day.exercises = day.exercises.filter(x => x !== id);
+    day.exercises = day.exercises.filter(x => x.id !== id);
     saveRoutine();
     updateRoutineBadge();
     renderRoutineDays();
   }
   function swapInRoutine(dayId, oldId, newId) {
     const day = findDay(dayId); if (!day) return;
-    const i = day.exercises.indexOf(oldId);
-    if (i !== -1) day.exercises[i] = newId;
+    const i = day.exercises.findIndex(x => x.id === oldId);
+    if (i !== -1) day.exercises[i] = { ...day.exercises[i], id: newId };
     saveRoutine();
     renderRoutineDays();
+  }
+  function updateExerciseField(dayId, id, field, value) {
+    const day = findDay(dayId); if (!day) return;
+    const item = day.exercises.find(x => x.id === id); if (!item) return;
+    item[field] = value;
+    saveRoutine();
   }
   function removeDay(dayId) {
     if (!confirm(UI[state.lang].removeDayConfirm)) return;
@@ -356,6 +359,11 @@
   function updateRoutineBadge() {
     const total = state.routine.reduce((n, d) => n + d.exercises.length, 0);
     $('#routineCount').textContent = total;
+  }
+
+  function statField(dayId, exId, field, value) {
+    return `<label class="stat-field"><span>${UI[state.lang][field]}</span>
+      <input type="text" class="stat-input" data-day="${dayId}" data-ex="${exId}" data-field="${field}" value="${value.replace(/"/g,'&quot;')}"></label>`;
   }
 
   function renderRoutineDays() {
@@ -374,18 +382,28 @@
       } else {
         const list = document.createElement('ul');
         list.className = 'routine-list';
-        d.exercises.forEach(id => {
-          const ex = state.all.find(e => e.id === id);
+        d.exercises.forEach(item => {
+          const ex = state.all.find(e => e.id === item.id);
           if (!ex) return;
           const li = document.createElement('li');
           li.className = 'routine-item';
           li.innerHTML = `
-            <img src="${ex.image}" alt="" loading="lazy">
-            <span class="ri-name">${ex.name}</span>
-            <button type="button" class="ri-swap" title="${UI[state.lang].swap}">⇄</button>
-            <button type="button" class="ri-remove" aria-label="Quitar">✕</button>`;
-          li.querySelector('.ri-remove').addEventListener('click', () => removeFromRoutine(d.id, id));
+            <div class="ri-top">
+              <img src="${ex.image}" alt="" loading="lazy">
+              <span class="ri-name">${ex.name}</span>
+              <button type="button" class="ri-swap" title="${UI[state.lang].swap}">⇄</button>
+              <button type="button" class="ri-remove" aria-label="Quitar">✕</button>
+            </div>
+            <div class="ri-stats">
+              ${statField(d.id, item.id, 'series', item.series || '')}
+              ${statField(d.id, item.id, 'reps', item.reps || '')}
+              ${statField(d.id, item.id, 'peso', item.peso || '')}
+            </div>`;
+          li.querySelector('.ri-remove').addEventListener('click', () => removeFromRoutine(d.id, item.id));
           li.querySelector('.ri-swap').addEventListener('click', (ev) => openSwapPicker(ev.currentTarget, d.id, ex));
+          li.querySelectorAll('.stat-input').forEach(inp => {
+            inp.addEventListener('change', () => updateExerciseField(d.id, item.id, inp.dataset.field, inp.value));
+          });
           list.appendChild(li);
         });
         section.appendChild(list);

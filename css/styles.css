@@ -261,15 +261,26 @@ a{ color:var(--chalk); }
 .routine-head .modal-close{ position:static; }
 .routine-list{ display:flex; flex-direction:column; gap:10px; }
 .routine-item{
-  display:flex; align-items:center; gap:10px; background:var(--panel-2); border:1px solid var(--line);
-  border-radius:9px; padding:8px; position:relative;
+  display:flex; flex-direction:column; gap:9px; background:var(--panel-2); border:1px solid var(--line);
+  border-radius:9px; padding:9px; position:relative;
 }
+.ri-top{ display:flex; align-items:center; gap:10px; }
 .routine-item img{ width:44px; height:44px; border-radius:6px; object-fit:cover; flex-shrink:0; }
 .routine-item .ri-name{ font-size:.82rem; font-weight:600; flex:1; }
-.routine-item button{
+.routine-item .ri-top button{
   background:none; border:none; color:var(--muted); font-size:1rem; padding:4px;
 }
-.routine-item button:hover{ color:var(--accent); }
+.routine-item .ri-top button:hover{ color:var(--accent); }
+.ri-stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding-left:54px; }
+.stat-field{ display:flex; flex-direction:column; gap:3px; }
+.stat-field span{ font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.5px; color:var(--muted-2); }
+.stat-input{
+  background:var(--panel); border:1px solid var(--line); color:var(--chalk); border-radius:6px;
+  padding:6px 7px; font-size:.78rem; font-family:var(--mono); width:100%; min-width:0;
+  transition:border-color .15s;
+}
+.stat-input:focus{ border-color:var(--accent); outline:none; }
+.stat-input::placeholder{ color:var(--muted-2); }
 .routine-empty{ color:var(--muted); font-size:.85rem; text-align:center; margin-top:30px; }
 
 /* ===== Add block (day picker) ===== */
@@ -358,4 +369,6 @@ a{ color:var(--chalk); }
   .search-row{ flex-wrap:wrap; }
   #equipmentSelect{ width:100%; }
   .grid{ grid-template-columns:repeat(auto-fill, minmax(130px,1fr)); gap:10px; }
+  .ri-stats{ padding-left:0; }
+  .routine-panel{ max-width:100%; }
 }
