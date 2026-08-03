@@ -85,6 +85,7 @@
   /* ---------- Routine data model ----------
      state.routine = [{ id, name: {es,en}|string, exercises: [{id,series,reps,peso}] }, ...]  */
   function dayName(day) { return typeof day.name === 'string' ? day.name : day.name[state.lang]; }
+  const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   function isValidRoutine(data) {
     return Array.isArray(data) && data.every(d => d && typeof d.id !== 'undefined' && d.name && Array.isArray(d.exercises)
       && d.exercises.every(x => x && typeof x.id !== 'undefined'));
@@ -281,7 +282,7 @@
 
   function renderDayPicker(container, onPick) {
     container.innerHTML = `<p class="day-picker-label">${UI[state.lang].chooseDay}</p>` +
-      state.routine.map(d => `<button type="button" class="day-chip" data-day="${d.id}">${dayName(d)}</button>`).join('');
+      state.routine.map(d => `<button type="button" class="day-chip" data-day="${d.id}">${esc(dayName(d))}</button>`).join('');
     container.querySelectorAll('.day-chip').forEach(btn => {
       btn.addEventListener('click', () => onPick(btn.dataset.day));
     });
@@ -373,7 +374,7 @@
     state.routine.forEach(d => {
       const section = document.createElement('div');
       section.className = 'day-section';
-      section.innerHTML = `<h3 class="day-heading">${dayName(d)} <span class="day-count">${d.exercises.length}</span><button type="button" class="day-remove" aria-label="Quitar día">✕</button></h3>`;
+      section.innerHTML = `<h3 class="day-heading">${esc(dayName(d))} <span class="day-count">${d.exercises.length}</span><button type="button" class="day-remove" aria-label="Quitar día">✕</button></h3>`;
       section.querySelector('.day-remove').addEventListener('click', () => removeDay(d.id));
       if (!d.exercises.length) {
         const p = document.createElement('p');
