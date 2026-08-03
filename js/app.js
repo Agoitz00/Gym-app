@@ -303,7 +303,12 @@
     if (entries[0].isIntersecting && state.shown < state.filtered.length) renderMore();
   }, { rootMargin: '400px' }).observe(sentinel);
 
-  $('#searchInput').addEventListener('input', (e) => { state.query = e.target.value; applyFilters(); });
+  let searchDebounce = null;
+  $('#searchInput').addEventListener('input', (e) => {
+    const val = e.target.value;
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(() => { state.query = val; applyFilters(); }, 180);
+  });
   function clearAllFilters() {
     state.activeParts.clear(); state.activeEquipment = ''; state.query = '';
     $('#searchInput').value = ''; $('#equipmentSelect').value = '';
@@ -349,11 +354,11 @@
   function renderProgressChart(exerciseId) {
     const section = $('#progressSection');
     const entries = (state.history[exerciseId] || []).filter(h => parseNum(h.peso) !== null);
+    section.hidden = false;
     if (!entries.length) {
-      section.hidden = true;
+      $('#progressChart').innerHTML = `<p class="progress-empty">${UI[state.lang].progressEmpty}</p>`;
       return;
     }
-    section.hidden = false;
     const pts = entries.map(h => ({ date: h.date, v: parseNum(h.peso) }));
     const W = 320, H = 100, pad = 18;
     const min = Math.min(...pts.map(p => p.v)), max = Math.max(...pts.map(p => p.v));
@@ -466,7 +471,8 @@
   $('#programNewBtn').addEventListener('click', () => {
     const name = prompt(UI[state.lang].programName);
     if (!name || !name.trim()) return;
-    const p = { id: 'prog_' + Date.now(), name: name.trim(), days: [] };
+    const trimmedName = name.trim().slice(0, 30);
+    const p = { id: 'prog_' + Date.now(), name: trimmedName, days: [] };
     state.programs.push(p);
     state.activeProgramId = p.id;
     saveProgramsState();
@@ -476,7 +482,7 @@
     const p = activeProgram();
     const name = prompt(UI[state.lang].renameProgram, dayName(p));
     if (!name || !name.trim()) return;
-    p.name = name.trim();
+    p.name = name.trim().slice(0, 30);
     saveProgramsState(); renderProgramSelect();
   });
   $('#programDeleteBtn').addEventListener('click', () => {
@@ -681,22 +687,26 @@
     const fill = $('#offlineBarFill'), lbl = $('#offlineProgressLabel');
     fill.style.width = '0%'; lbl.textContent = `0 / ${urls.length}`;
 
-    let done = 0;
-    const worker = (url) => fetch(url).then(() => {
-      done++;
-      const pct = Math.round((done / urls.length) * 100);
-      fill.style.width = pct + '%';
-      lbl.textContent = `${done} / ${urls.length}`;
+    let ok = 0, fail = 0;
+    const total = urls.length;
+    const worker = (url) => fetch(url).then((res) => {
+      if (!res.ok) throw new Error('bad status');
+      ok++;
+    }).catch(() => { fail++; }).finally(() => {
+      const done = ok + fail;
+      fill.style.width = Math.round((done / total) * 100) + '%';
+      lbl.textContent = `${done} / ${total}`;
     });
     const limit = 6;
     let i = 0;
     async function pump() {
-      while (i < urls.length) { const u = urls[i++]; await worker(u).catch(() => {}); }
+      while (i < urls.length) { const u = urls[i++]; await worker(u); }
     }
     await Promise.all(Array.from({ length: limit }, pump));
 
-    btn.disabled = false; btn.textContent = UI[state.lang].offlineDone;
-    setTimeout(() => { btn.textContent = UI[state.lang].offlineGoBtn; }, 2500);
+    btn.disabled = false;
+    btn.textContent = fail ? `⚠ ${ok}/${total}` : UI[state.lang].offlineDone;
+    setTimeout(() => { btn.textContent = UI[state.lang].offlineGoBtn; }, fail ? 4000 : 2500);
   });
 
   /* ---------- Workout mode ---------- */

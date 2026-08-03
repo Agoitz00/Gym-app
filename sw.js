@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'agoitzgym-shell-v2';
-const MEDIA_CACHE = 'agoitzgym-media-v2';
+const SHELL_CACHE = 'agoitzgym-shell-v3';
+const MEDIA_CACHE = 'agoitzgym-media-v3';
 
 const SHELL_FILES = [
   './',
@@ -37,10 +37,13 @@ self.addEventListener('fetch', (event) => {
   if (url.pathname.includes('/images/') || url.pathname.includes('/videos/')) {
     event.respondWith(
       caches.open(MEDIA_CACHE).then((cache) =>
-        cache.match(event.request).then((cached) => cached || fetch(event.request).then((res) => {
-          if (res.ok) cache.put(event.request, res.clone());
-          return res;
-        }).catch(() => cached))
+        cache.match(event.request).then((cached) => {
+          if (cached) return cached;
+          return fetch(event.request).then((res) => {
+            if (res.ok) cache.put(event.request, res.clone());
+            return res;
+          });
+        })
       )
     );
     return;
