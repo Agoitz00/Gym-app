@@ -134,6 +134,8 @@
       <div class="offline-panel" id="offlinePanel" hidden>
         <p class="offline-hint" data-i18n="offlineHint">Elige qué equipo quieres tener disponible offline (así no descargas los 138&nbsp;MB completos):</p>
         <div class="offline-checks" id="offlineChecks"></div>
+        <p class="offline-hint" data-i18n="offlinePartsHint">Y opcionalmente, solo estas partes del cuerpo:</p>
+        <div class="offline-checks" id="offlinePartChecks"></div>
         <button type="button" class="offline-go" id="offlineGoBtn" data-i18n="offlineGoBtn">Descargar seleccionado</button>
         <div class="offline-progress" id="offlineProgress" hidden>
           <div class="offline-bar"><div class="offline-bar-fill" id="offlineBarFill"></div></div>
@@ -153,7 +155,7 @@
   </div>
 
   <div class="workout-body">
-    <div class="workout-media">
+    <div class="workout-media" id="workoutMedia">
       <video id="workoutGif" autoplay loop muted playsinline></video>
     </div>
     <h2 id="workoutExName"></h2>

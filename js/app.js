@@ -21,6 +21,8 @@
       offlineHint: 'Elige qué equipo quieres tener disponible offline (así no descargas los 138\u00a0MB completos):',
       offlineGoBtn: 'Descargar seleccionado', offlineGoing: 'Descargando…', offlineDone: '✓ Listo, disponible sin conexión',
       offlineNone: 'Elige al menos un tipo de equipo.',
+      addCustomEx: '+ Ejercicio sin foto', customExPrompt: 'Nombre del ejercicio (sin ficha ni animación):',
+      offlinePartsHint: 'Y opcionalmente, solo estas partes del cuerpo:',
       series: 'Series', reps: 'Reps', peso: 'Peso',
       progressTitle: 'Tu progreso', progressEmpty: 'Aún no hay historial — regístralo desde Modo entrenamiento.',
       train: '▶ Entrenar', exit: 'Salir', prevExercise: '← Anterior', nextExercise: 'Siguiente →',
@@ -47,6 +49,8 @@
       offlineHint: 'Pick which equipment you want available offline (so you don\u2019t download the full 138\u00a0MB):',
       offlineGoBtn: 'Download selected', offlineGoing: 'Downloading…', offlineDone: '✓ Done, available offline',
       offlineNone: 'Pick at least one equipment type.',
+      addCustomEx: '+ Exercise without photo', customExPrompt: 'Exercise name (no catalog entry or animation):',
+      offlinePartsHint: 'And optionally, only these body parts:',
       series: 'Sets', reps: 'Reps', peso: 'Weight',
       progressTitle: 'Your progress', progressEmpty: 'No history yet — log it from Workout mode.',
       train: '▶ Train', exit: 'Exit', prevExercise: '← Previous', nextExercise: 'Next →',
@@ -200,6 +204,7 @@
     buildEquipmentOptions();
     buildPlateRack();
     buildOfflineChecks();
+    buildOfflinePartChecks();
     applyFilters();
     updateRoutineBadge();
   }).catch(err => {
@@ -564,15 +569,20 @@
         const list = document.createElement('ul');
         list.className = 'routine-list';
         d.exercises.forEach(item => {
-          const ex = state.all.find(e => e.id === item.id);
-          if (!ex) return;
+          const ex = item.custom ? null : state.all.find(e => e.id === item.id);
+          if (!ex && !item.custom) return;
           const li = document.createElement('li');
           li.className = 'routine-item';
+          const media = ex
+            ? `<img src="${ex.image}" alt="" loading="lazy">`
+            : `<span class="ri-custom-icon" aria-hidden="true">✎</span>`;
+          const name = ex ? ex.name : esc(item.name);
+          const swapBtn = ex ? `<button type="button" class="ri-swap" title="${UI[state.lang].swap}">⇄</button>` : '';
           li.innerHTML = `
             <div class="ri-top">
-              <img src="${ex.image}" alt="" loading="lazy">
-              <span class="ri-name">${ex.name}</span>
-              <button type="button" class="ri-swap" title="${UI[state.lang].swap}">⇄</button>
+              ${media}
+              <span class="ri-name">${name}</span>
+              ${swapBtn}
               <button type="button" class="ri-remove" aria-label="Quitar">✕</button>
             </div>
             <div class="ri-stats">
@@ -581,7 +591,8 @@
               ${statField(d.id, item.id, 'peso', item.peso || '')}
             </div>`;
           li.querySelector('.ri-remove').addEventListener('click', () => removeFromRoutine(d.id, item.id));
-          li.querySelector('.ri-swap').addEventListener('click', (ev) => openSwapPicker(ev.currentTarget, d.id, ex));
+          const swapEl = li.querySelector('.ri-swap');
+          if (swapEl) swapEl.addEventListener('click', (ev) => openSwapPicker(ev.currentTarget, d.id, ex));
           li.querySelectorAll('.stat-input').forEach(inp => {
             inp.addEventListener('change', () => updateExerciseField(d.id, item.id, inp.dataset.field, inp.value));
           });
@@ -589,8 +600,21 @@
         });
         section.appendChild(list);
       }
+      const addCustomBtn = document.createElement('button');
+      addCustomBtn.type = 'button'; addCustomBtn.className = 'add-custom-ex-btn';
+      addCustomBtn.textContent = UI[state.lang].addCustomEx;
+      addCustomBtn.addEventListener('click', () => addCustomExercise(d.id));
+      section.appendChild(addCustomBtn);
       container.appendChild(section);
     });
+  }
+
+  function addCustomExercise(dayId) {
+    const name = prompt(UI[state.lang].customExPrompt);
+    if (!name || !name.trim()) return;
+    const day = findDay(dayId); if (!day) return;
+    day.exercises.push({ id: 'custom_' + Date.now(), custom: true, name: name.trim().slice(0, 60), series: '4', reps: '8-12', peso: '' });
+    saveRoutine(); updateRoutineBadge(); renderRoutineDays();
   }
 
   function openSwapPicker(anchorBtn, dayId, exercise) {
@@ -670,6 +694,17 @@
       </label>`).join('');
   }
 
+  function buildOfflinePartChecks() {
+    const order = ['back','cardio','chest','lower arms','lower legs','neck','shoulders','upper arms','upper legs','waist'];
+    const found = [...new Set(state.all.map(e => e.body_part))].sort((a,b) => order.indexOf(a) - order.indexOf(b));
+    const box = $('#offlinePartChecks');
+    box.innerHTML = found.map(v => `
+      <label class="offline-check">
+        <input type="checkbox" value="${v}">
+        ${label(BODY_PART_LABEL, v)}
+      </label>`).join('');
+  }
+
   $('#offlineToggle').addEventListener('click', () => {
     $('#offlinePanel').hidden = !$('#offlinePanel').hidden;
   });
@@ -677,7 +712,8 @@
   $('#offlineGoBtn').addEventListener('click', async () => {
     const chosen = [...document.querySelectorAll('#offlineChecks input:checked')].map(c => c.value);
     if (!chosen.length) { alert(UI[state.lang].offlineNone); return; }
-    const matched = state.all.filter(e => chosen.includes(e.equipment));
+    const chosenParts = [...document.querySelectorAll('#offlinePartChecks input:checked')].map(c => c.value);
+    const matched = state.all.filter(e => chosen.includes(e.equipment) && (!chosenParts.length || chosenParts.includes(e.body_part)));
     const urls = [];
     matched.forEach(e => { urls.push(e.image); urls.push(e.gif); });
 
@@ -749,15 +785,23 @@
     const ctx = currentWorkoutItem();
     if (!ctx || !ctx.item) { finishWorkout(); return; }
     const { day, item } = ctx;
-    const ex = state.all.find(e => e.id === item.id);
-    if (!ex) { workout.index++; renderWorkoutExercise(); return; }
+    const ex = item.custom ? null : state.all.find(e => e.id === item.id);
+    if (!ex && !item.custom) { workout.index++; renderWorkoutExercise(); return; }
 
     $('#workoutProgress').textContent = `${workout.index + 1} / ${day.exercises.length}`;
     $('#workoutDayName').textContent = dayName(day);
-    $('#workoutGif').src = ex.gif;
-    $('#workoutGif').play().catch(() => {});
-    $('#workoutExName').textContent = ex.name;
-    $('#workoutTarget').textContent = `${label(BODY_PART_LABEL, ex.body_part)} · ${label(TARGET_LABEL, ex.target)}`;
+    if (ex) {
+      $('#workoutMedia').hidden = false;
+      $('#workoutGif').src = ex.gif;
+      $('#workoutGif').play().catch(() => {});
+      $('#workoutExName').textContent = ex.name;
+      $('#workoutTarget').textContent = `${label(BODY_PART_LABEL, ex.body_part)} · ${label(TARGET_LABEL, ex.target)}`;
+    } else {
+      $('#workoutMedia').hidden = true;
+      $('#workoutGif').removeAttribute('src');
+      $('#workoutExName').textContent = item.name;
+      $('#workoutTarget').textContent = '';
+    }
     $('#workoutReps').value = item.reps || '';
     $('#workoutPeso').value = item.peso || '';
 
@@ -863,6 +907,13 @@
     });
     if (currentExercise && !backdrop.hidden) openModal(currentExercise);
     if (!$('#routineBackdrop').hidden) renderRoutineDays();
+    if (state.all.length) {
+      const checkedEq = [...document.querySelectorAll('#offlineChecks input:checked')].map(c => c.value);
+      const checkedParts = [...document.querySelectorAll('#offlinePartChecks input:checked')].map(c => c.value);
+      buildOfflineChecks(); buildOfflinePartChecks();
+      document.querySelectorAll('#offlineChecks input').forEach(c => { c.checked = checkedEq.includes(c.value); });
+      document.querySelectorAll('#offlinePartChecks input').forEach(c => { c.checked = checkedParts.includes(c.value); });
+    }
   }
   $('#langBtn').addEventListener('click', () => setLanguage(state.lang === 'es' ? 'en' : 'es'));
 

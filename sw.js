@@ -1,5 +1,5 @@
-const SHELL_CACHE = 'agoitzgym-shell-v3';
-const MEDIA_CACHE = 'agoitzgym-media-v3';
+const SHELL_CACHE = 'agoitzgym-shell-v4';
+const MEDIA_CACHE = 'agoitzgym-media-v4';
 
 const SHELL_FILES = [
   './',

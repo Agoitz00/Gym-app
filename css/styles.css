@@ -266,6 +266,16 @@ a{ color:var(--chalk); }
 }
 .ri-top{ display:flex; align-items:center; gap:10px; }
 .routine-item img{ width:44px; height:44px; border-radius:6px; object-fit:cover; flex-shrink:0; }
+.ri-custom-icon{
+  width:44px; height:44px; border-radius:6px; flex-shrink:0; background:var(--panel);
+  border:1px dashed var(--line); display:flex; align-items:center; justify-content:center;
+  color:var(--muted); font-size:1rem;
+}
+.add-custom-ex-btn{
+  width:100%; margin-top:8px; background:none; border:1px dashed var(--line); color:var(--muted);
+  border-radius:8px; padding:8px; font-size:.72rem; font-weight:600;
+}
+.add-custom-ex-btn:hover{ border-color:var(--muted-2); color:var(--chalk); }
 .routine-item .ri-name{ font-size:.82rem; font-weight:600; flex:1; }
 .routine-item .ri-top button{
   background:none; border:none; color:var(--muted); font-size:1rem; padding:4px;
